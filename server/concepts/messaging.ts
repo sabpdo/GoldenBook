@@ -26,7 +26,7 @@ export default class MessagingConcept {
   async create(to: ObjectId, from: ObjectId, content: string) {
     const time = new Date();
     const _id = await this.messages.createOne({ to, from, content, time });
-    return { msg: "Message successfully created!", post: await this.messages.readOne({ _id }) };
+    return { msg: "Message successfully created!", message: await this.messages.readOne({ _id }) };
   }
 
   async getMessages() {
@@ -39,6 +39,10 @@ export default class MessagingConcept {
 
   async getByReceiver(to: ObjectId) {
     return await this.messages.readMany({ to: to });
+  }
+
+  async getBySenderAndReceiver(from: ObjectId, to: ObjectId) {
+    return await this.messages.readMany({ from: from, to: to });
   }
 
   async delete(_id: ObjectId) {
@@ -55,16 +59,6 @@ export default class MessagingConcept {
       throw new MessageSenderNotMatchError(user, _id);
     }
   }
-
-  async assertReceiverIsUser(_id: ObjectId, user: ObjectId) {
-    const message = await this.messages.readOne({ _id });
-    if (!message) {
-      throw new NotFoundError(`Message ${_id} does not exist!`);
-    }
-    if (message.to.toString() !== user.toString()) {
-      throw new MessageReceiverNotMatchError(user, _id);
-    }
-  }
 }
 
 export class MessageSenderNotMatchError extends NotAllowedError {
@@ -75,13 +69,3 @@ export class MessageSenderNotMatchError extends NotAllowedError {
     super("{0} is not the sender of message {1}!", sender, _id);
   }
 }
-
-export class MessageReceiverNotMatchError extends NotAllowedError {
-    constructor(
-      public readonly receiver: ObjectId,
-      public readonly _id: ObjectId,
-    ) {
-      super("{0} is not the receiver of message {1}!", receiver, _id);
-    }
-  }
-  

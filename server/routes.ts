@@ -2,7 +2,7 @@ import { ObjectId } from "mongodb";
 
 import { Router, getExpressRouter } from "./framework/router";
 
-import { Authing, Friending, Posting, Sessioning } from "./app";
+import { Authing, Friending, Posting, Sessioning, Messaging, Authorizing, Nudging, Recording } from "./app";
 import { PostOptions } from "./concepts/posting";
 import { SessionDoc } from "./concepts/sessioning";
 import Responses from "./responses";
@@ -152,6 +152,79 @@ class Routes {
     const fromOid = (await Authing.getUserByUsername(from))._id;
     return await Friending.rejectRequest(fromOid, user);
   }
+
+  @Router.get("/messages")
+  @Router.validate(z.object({ sender: z.string().optional(), receiver: z.string().optional() }))
+  async getMessages(sender?: string, receiver?: string) {
+    let messages;
+    if (sender && receiver) {
+      const sender_id = (await Authing.getUserByUsername(sender))._id;
+      const receiver_id = (await Authing.getUserByUsername(receiver))._id;
+      messages = await Messaging.getBySenderAndReceiver(sender_id, receiver_id);
+    }  else if (sender) {
+      const id = (await Authing.getUserByUsername(sender))._id;
+      messages = await Messaging.getBySender(id);
+    } else if (receiver) {
+      const id = (await Authing.getUserByUsername(receiver))._id;
+      messages = await Messaging.getByReceiver(id);
+    } else {
+      messages = await Messaging.getMessages();
+    }
+    return messages;
+  }
+
+  @Router.post("/messages")
+  async sendMessage(session: SessionDoc, to: string, content: string) {
+    const receiver = (await Authing.getUserByUsername(to))._id;
+    const sender = Sessioning.getUser(session);
+    const created = await Messaging.create(sender, receiver, content);
+    return { msg: created.msg, message: created.message };
+  }
+
+  @Router.delete("/messages/:id")
+  async deleteMessage(session: SessionDoc, id: string) {
+    const user = Sessioning.getUser(session);
+    const oid = new ObjectId(id);
+    await Messaging.assertSenderIsUser(oid, user);
+    return Messaging.delete(oid);
+  }
+
+  @Router.get("/nudges")
+  @Router.validate(z.object({ sender: z.string().optional(), receiver: z.string().optional(), action: z.string().optional(), time: z.string().optional() }))
+  async getNudges(sender?: string, receiver?: string, action?: string, time?: string) {
+    let nudges;
+    if (sender) {
+      const id = (await Authing.getUserByUsername(sender))._id;
+      nudges = await Nudging.getBySender(id);
+    } else if (receiver) {
+      const id = (await Authing.getUserByUsername(receiver))._id;
+      nudges = await Nudging.getByReceiver(id);
+    } else if (time) {
+      const timeDate = time ? new Date(time) : new Date();
+      nudges = await Nudging.getFutureNudges(timeDate);
+    } else {
+      nudges = await Nudging.getNudges();
+    }
+    return nudges;
+  }
+
+  @Router.post("/nudges")
+  async sendNudge(session: SessionDoc, to: string, action: string, time?: string) {
+    const receiver = (await Authing.getUserByUsername(to))._id;
+    const sender = Sessioning.getUser(session);
+    const timeDate = time ? new Date(time) : new Date();
+    const created = await Nudging.create(receiver, sender, action, timeDate);
+    return { msg: created.msg, message: created.nudge };
+  }
+
+  @Router.delete("/nudges/:id")
+  async deleteNudge(session: SessionDoc, id: string) {
+    const user = Sessioning.getUser(session);
+    const oid = new ObjectId(id);
+    await Nudging.assertSenderIsUser(oid, user);
+    return Nudging.delete(oid);
+  }
+
 }
 
 /** The web app. */

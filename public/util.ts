@@ -80,6 +80,42 @@ const operations: Operation[] = [
     method: "DELETE",
     fields: { id: "input" },
   },
+  {
+    name: "Get Messages (empty for all)",
+    endpoint: "/api/messages",
+    method: "GET",
+    fields: { sender: "input", receiver: "input" },
+  },
+  {
+    name: "Send Message",
+    endpoint: "/api/messages",
+    method: "POST",
+    fields: { to: "input", content: "input" },
+  },
+  {
+    name: "Delete Message",
+    endpoint: "/api/posts/:id",
+    method: "DELETE",
+    fields: { id: "input" },
+  },
+  {
+    name: "Get Nudges (empty for all)",
+    endpoint: "/api/nudges",
+    method: "GET",
+    fields: { sender: "input", receiver: "input", action: "input", time: "input" },
+  },
+  {
+    name: "Send Nudge",
+    endpoint: "/api/nudges",
+    method: "POST",
+    fields: { to: "input", action: "input", time: "input" },
+  },
+  {
+    name: "Delete Nudge",
+    endpoint: "/api/nudges/:id",
+    method: "DELETE",
+    fields: { id: "input" },
+  },
   //
   // ...
   //

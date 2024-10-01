@@ -3,7 +3,7 @@ import { ObjectId } from "mongodb";
 import DocCollection, { BaseDoc } from "../framework/doc";
 import { NotAllowedError, NotFoundError } from "./errors";
 
-export interface AuthorizedDoc extends BaseDoc {
+export interface AuthorizationDoc extends BaseDoc {
     user : ObjectId;
     denied: String;
 }
@@ -12,13 +12,13 @@ export interface AuthorizedDoc extends BaseDoc {
  * concept: Authorizing [User, Action]
  */
 export default class AuthorizingConcept {
-  public readonly denied: DocCollection<AuthorizedDoc>;
+  public readonly denied: DocCollection<AuthorizationDoc>;
 
   /**
    * Make an instance of Authorizing.
    */
   constructor(collectionName: string) {
-    this.denied = new DocCollection<AuthorizedDoc>(collectionName);
+    this.denied = new DocCollection<AuthorizationDoc>(collectionName);
   }
 
   async allow(user: ObjectId, action: String) {
