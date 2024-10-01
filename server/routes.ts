@@ -225,6 +225,33 @@ class Routes {
     return Nudging.delete(oid);
   }
 
+  @Router.get("/records")
+  async getRecords() {
+    return await Recording.getRecords();
+  }
+
+  @Router.get("/records/:id")
+  async getRecordsByUser(session: SessionDoc) {
+    const user = Sessioning.getUser(session);
+    return await Recording.getByUser(user);
+  }
+
+  @Router.post("/records")
+  async createRecord(session: SessionDoc, action: string, time: string) {
+    const user = Sessioning.getUser(session);
+    const timeDate = new Date(time);
+    const created = await Recording.create(user, action, timeDate);
+    return { msg: created.msg, record: created.post };
+  }
+
+  @Router.delete("/records/:id")
+  async deleteRecord(session: SessionDoc, id: string) {
+    const user = Sessioning.getUser(session);
+    const oid = new ObjectId(id);
+    await Recording.assertRecorderIsUser(oid, user);
+    return Recording.delete(oid);
+  }
+
 }
 
 /** The web app. */

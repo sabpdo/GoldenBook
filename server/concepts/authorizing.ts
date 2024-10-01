@@ -31,16 +31,16 @@ export default class AuthorizingConcept {
     return { msg: "Action successfully denied!", post: await this.denied.readOne({ _id }) };
   }
 
-    async getDeniedActionByUser(user: ObjectId) {
-        return await this.denied.readMany({ user: user });
-    }
+  async getDeniedActionByUser(user: ObjectId) {
+    return await this.denied.readMany({ user: user });
+  }
 
-    async getByAction(action: String) {
-        return await this.denied.readMany({ denied: action });
-    }
+  async getByAction(action: String) {
+    return await this.denied.readMany({ denied: action });
+  }
 
-    async isAllowed(user: ObjectId, action: String) {
-        const denied = await this.denied.readOne({ user: user, denied: action });
-        return !denied;
-    }
+  async isAllowed(user: ObjectId, action: String) {
+    const denied = await this.denied.readOne({ user: user, denied: action });
+      return !denied;
+  }
 }

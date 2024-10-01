@@ -1,6 +1,9 @@
 import { Authing } from "./app";
 import { AlreadyFriendsError, FriendNotFoundError, FriendRequestAlreadyExistsError, FriendRequestDoc, FriendRequestNotFoundError } from "./concepts/friending";
 import { PostAuthorNotMatchError, PostDoc } from "./concepts/posting";
+import { MessageSenderNotMatchError } from "./concepts/messaging";
+import { NudgeSenderNotMatchError } from "./concepts/nudging";
+import { RecorderNotMatchError } from "./concepts/recording";
 import { Router } from "./framework/router";
 
 /**
@@ -62,4 +65,19 @@ Router.registerError(FriendRequestNotFoundError, async (e) => {
 Router.registerError(AlreadyFriendsError, async (e) => {
   const [user1, user2] = await Promise.all([Authing.getUserById(e.user1), Authing.getUserById(e.user2)]);
   return e.formatWith(user1.username, user2.username);
+});
+
+Router.registerError(MessageSenderNotMatchError, async (e) => {
+  const username = (await Authing.getUserById(e.sender)).username;
+  return e.formatWith(username, e._id);
+});
+
+Router.registerError(NudgeSenderNotMatchError, async (e) => {
+  const username = (await Authing.getUserById(e.sender)).username;
+  return e.formatWith(username, e._id);
+});
+
+Router.registerError(RecorderNotMatchError, async (e) => {
+  const username = (await Authing.getUserById(e.recorder)).username;
+  return e.formatWith(username, e._id);
 });

@@ -35,10 +35,6 @@ export default class RecordingConcept {
     return await this.records.readMany({ user: user });
   }
 
-  async getByTime(time: Date) {
-    return await this.records.readMany({ time: time });
-  }
-
   async getByAction(action: String) {
     return await this.records.readMany({ action: action });
   }
@@ -46,6 +42,22 @@ export default class RecordingConcept {
   async delete(_id: ObjectId) {
     await this.records.deleteOne({ _id });
     return { msg: "Record deleted successfully!" };
+  }
+
+  async assertRecorderIsUser(_id: ObjectId, user: ObjectId) {
+    const record = await this.records.readOne({ _id });
+    if (record != null && record.user !== user) {
+      throw new NotAllowedError("You are not allowed to delete this record.");
+    }
+  }
+}
+
+export class RecorderNotMatchError extends NotAllowedError {
+  constructor(
+    public readonly recorder: ObjectId,
+    public readonly _id: ObjectId,
+  ) {
+    super("{0} is not the recorder of record {1}!", recorder, _id);
   }
 }
 
