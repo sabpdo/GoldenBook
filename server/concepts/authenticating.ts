@@ -18,7 +18,6 @@ export default class AuthenticatingConcept {
    */
   constructor(collectionName: string) {
     this.users = new DocCollection<UserDoc>(collectionName);
-
     // Create index on username to make search queries for it performant
     void this.users.collection.createIndex({ username: 1 });
   }

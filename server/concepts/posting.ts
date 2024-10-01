@@ -10,6 +10,7 @@ export interface PostOptions {
 export interface PostDoc extends BaseDoc {
   author: ObjectId;
   content: string;
+  time: Date;
   options?: PostOptions;
 }
 
@@ -27,7 +28,8 @@ export default class PostingConcept {
   }
 
   async create(author: ObjectId, content: string, options?: PostOptions) {
-    const _id = await this.posts.createOne({ author, content, options });
+    const time = new Date();
+    const _id = await this.posts.createOne({ author, content, time, options });
     return { msg: "Post successfully created!", post: await this.posts.readOne({ _id }) };
   }
 
