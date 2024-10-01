@@ -24,7 +24,7 @@ export default class RecordingConcept {
 
   async create(user: ObjectId, action: string, time: Date) {
     const _id = await this.records.createOne({ user, action, time });
-    return { msg: "Record successfully created!", post: await this.records.readOne({ _id }) };
+    return { msg: "Record successfully created!", record: await this.records.readOne({ _id }) };
   }
 
   async getRecords() {

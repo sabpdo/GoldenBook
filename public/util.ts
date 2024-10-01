@@ -116,6 +116,24 @@ const operations: Operation[] = [
     method: "DELETE",
     fields: { id: "input" },
   },
+  {
+    name: "Get Records",
+    endpoint: "/api/records",
+    method: "GET",
+    fields: { recorder: "input" },
+  },
+  {
+    name: "Create Record",
+    endpoint: "/api/records",
+    method: "POST",
+    fields: { action: "input", time: "input" },
+  },
+  {
+    name: "Delete Record",
+    endpoint: "/api/records/:id",
+    method: "DELETE",
+    fields: { id: "input" },
+  }
   //
   // ...
   //

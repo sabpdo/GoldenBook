@@ -1,9 +1,9 @@
 import { Authing } from "./app";
 import { AlreadyFriendsError, FriendNotFoundError, FriendRequestAlreadyExistsError, FriendRequestDoc, FriendRequestNotFoundError } from "./concepts/friending";
 import { PostAuthorNotMatchError, PostDoc } from "./concepts/posting";
-import { MessageSenderNotMatchError } from "./concepts/messaging";
-import { NudgeSenderNotMatchError } from "./concepts/nudging";
-import { RecorderNotMatchError } from "./concepts/recording";
+import { MessageSenderNotMatchError, MessageDoc } from "./concepts/messaging";
+import { NudgeSenderNotMatchError, NudgeDoc } from "./concepts/nudging";
+import { RecorderNotMatchError, RecordDoc } from "./concepts/recording";
 import { Router } from "./framework/router";
 
 /**
@@ -39,6 +39,73 @@ export default class Responses {
     const to = requests.map((request) => request.to);
     const usernames = await Authing.idsToUsernames(from.concat(to));
     return requests.map((request, i) => ({ ...request, from: usernames[i], to: usernames[i + requests.length] }));
+  }
+
+  /**
+   * Convert MessageDoc into more readable format for the frontend by converting the sender/receiver id into a username.
+   */
+  static async message(message: MessageDoc | null) {
+    if (!message) {
+      return message;
+    }
+    const sender = await Authing.getUserById(message.from);
+    const receiver = await Authing.getUserById(message.to);
+    return { ...message, to: receiver.username, from: sender.username };
+  }
+
+  /**
+   * Same as {@link message} but for an array of MessageDoc for improved performance.
+   */
+  static async messages(messages: MessageDoc[]) {
+    const senders = await Authing.idsToUsernames(messages.map((message) => message.from));
+    const receivers = await Authing.idsToUsernames(messages.map((message) => message.to));
+    return messages.map((message, i) => ({ ...message, from: senders[i], to: receivers[i] }));
+  }
+
+  static async nudge(nudge: NudgeDoc | null) {
+    if (!nudge) {
+      return nudge;
+    }
+    if (!nudge.from) {
+      return { ...nudge, from: "SYSTEM" };
+    }
+    const receiver = await Authing.getUserById(nudge.to);
+    if (!nudge.from) {
+      return { ...nudge, to: receiver.username, from: "SYSTEM" };
+    }
+    const sender = await Authing.getUserById(nudge.from);
+    return { ...nudge, to: receiver.username, from: sender.username };
+  }
+
+  /**
+   * Same as {@link nudge} but for an array of NudgeDoc for improved performance.
+   */
+  static async nudges(nudges: NudgeDoc[]) {
+    const senders = Array<string|null>();
+    for (let i = 0; i < nudges.length; i++) {
+      const nudge_sender = nudges[i].from;
+      if (nudge_sender) {
+        senders.push(null);
+      } else if (nudge_sender) {
+        const sender = (await Authing.getUserById(nudge_sender)).username;
+        senders.push(sender);
+      }
+    }
+    const receivers = await Authing.idsToUsernames(nudges.map((nudge) => nudge.to));
+    return nudges.map((nudge, i) => ({ ...nudge, from: senders[i], to: receivers[i] }));
+  }
+
+  static async record(record: RecordDoc | null) {
+    if (!record) {
+      return record;
+    }
+    const recorder = await Authing.getUserById(record.user);
+    return { ...record, recorder: recorder.username };
+  }
+
+  static async records(records: RecordDoc[]) {
+    const recorders = await Authing.idsToUsernames(records.map((record) => record.user));
+    return records.map((record, i) => ({ ...record, recorder: recorders[i] }));
   }
 }
 

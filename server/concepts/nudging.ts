@@ -4,10 +4,10 @@ import DocCollection, { BaseDoc } from "../framework/doc";
 import { NotAllowedError, NotFoundError } from "./errors";
 
 export interface NudgeDoc extends BaseDoc {
-  to: ObjectId;
-  from: ObjectId | null;
   action: String;
-  time?: Date;
+  time: Date;
+  to: ObjectId;
+  from?: ObjectId;
 }
 
 /**
@@ -23,9 +23,14 @@ export default class NudgingConcept {
     this.nudges = new DocCollection<NudgeDoc>(collectionName);
   }
 
-  async create(to: ObjectId, from: ObjectId | null = null, action: string, time?: Date) {
+  async create(action: string, time: Date, to: ObjectId, from?: ObjectId) {
     time = (time == undefined) ? new Date() : time;
-    const _id = await this.nudges.createOne({ to, from, action, time });
+    let _id;
+    if (from) {
+      _id = await this.nudges.createOne({ to, from, action, time });
+    } else {
+      _id = await this.nudges.createOne({ to, action, time });
+    }
     return { msg: "Nudge successfully created!", nudge: await this.nudges.readOne({ _id }) };
   }
 
@@ -55,7 +60,7 @@ export default class NudgingConcept {
     if (!nudge) {
       throw new NotFoundError(`Nudge ${_id} does not exist!`);
     }
-    if (nudge.from !== null && nudge.from.toString() !== user.toString()) {
+    if (nudge.from && nudge.from.toString() !== user.toString()) {
       throw new NudgeSenderNotMatchError(user, _id);
     }
   }

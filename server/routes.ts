@@ -170,7 +170,7 @@ class Routes {
     } else {
       messages = await Messaging.getMessages();
     }
-    return messages;
+    return Responses.messages(messages);
   }
 
   @Router.post("/messages")
@@ -178,7 +178,7 @@ class Routes {
     const receiver = (await Authing.getUserByUsername(to))._id;
     const sender = Sessioning.getUser(session);
     const created = await Messaging.create(sender, receiver, content);
-    return { msg: created.msg, message: created.message };
+    return { msg: created.msg, message: Responses.message(created.message) };
   }
 
   @Router.delete("/messages/:id")
@@ -205,7 +205,7 @@ class Routes {
     } else {
       nudges = await Nudging.getNudges();
     }
-    return nudges;
+    return Responses.nudges(nudges);
   }
 
   @Router.post("/nudges")
@@ -213,8 +213,8 @@ class Routes {
     const receiver = (await Authing.getUserByUsername(to))._id;
     const sender = Sessioning.getUser(session);
     const timeDate = time ? new Date(time) : new Date();
-    const created = await Nudging.create(receiver, sender, action, timeDate);
-    return { msg: created.msg, message: created.nudge };
+    const created = await Nudging.create(action, timeDate, receiver, sender);
+    return { msg: created.msg, message: Responses.nudge(created.nudge) };
   }
 
   @Router.delete("/nudges/:id")
@@ -226,22 +226,24 @@ class Routes {
   }
 
   @Router.get("/records")
-  async getRecords() {
-    return await Recording.getRecords();
-  }
-
-  @Router.get("/records/:id")
-  async getRecordsByUser(session: SessionDoc) {
-    const user = Sessioning.getUser(session);
-    return await Recording.getByUser(user);
+  @Router.validate(z.object({ recorder: z.string().optional() }))
+  async getRecords(recorder?: string) {
+    let records;
+    if (recorder) {
+      const id = (await Authing.getUserByUsername(recorder))._id;
+      records = await Recording.getByUser(id);
+    } else {
+      records = await Recording.getRecords();
+    }
+    return Responses.records(records);
   }
 
   @Router.post("/records")
-  async createRecord(session: SessionDoc, action: string, time: string) {
+  async createRecord(session: SessionDoc, action: string, time?: string) {
     const user = Sessioning.getUser(session);
-    const timeDate = new Date(time);
+    const timeDate = time ? new Date(time) : new Date();
     const created = await Recording.create(user, action, timeDate);
-    return { msg: created.msg, record: created.post };
+    return { msg: created.msg, record: Responses.record(created.record) };
   }
 
   @Router.delete("/records/:id")
@@ -251,7 +253,6 @@ class Routes {
     await Recording.assertRecorderIsUser(oid, user);
     return Recording.delete(oid);
   }
-
 }
 
 /** The web app. */
