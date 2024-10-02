@@ -4,6 +4,7 @@ import { PostAuthorNotMatchError, PostDoc } from "./concepts/posting";
 import { MessageSenderNotMatchError, MessageDoc } from "./concepts/messaging";
 import { NudgeSenderNotMatchError, NudgeDoc } from "./concepts/nudging";
 import { RecorderNotMatchError, RecordDoc } from "./concepts/recording";
+import { UnauthorizedError } from "./concepts/authorizing";
 import { Router } from "./framework/router";
 
 /**
@@ -147,4 +148,9 @@ Router.registerError(NudgeSenderNotMatchError, async (e) => {
 Router.registerError(RecorderNotMatchError, async (e) => {
   const username = (await Authing.getUserById(e.recorder)).username;
   return e.formatWith(username, e._id);
+});
+
+Router.registerError(UnauthorizedError, async (e) => {
+  const username = (await Authing.getUserById(e.user)).username;
+  return e.formatWith(username, e.action);
 });

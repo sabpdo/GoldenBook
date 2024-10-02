@@ -253,6 +253,24 @@ class Routes {
     await Recording.assertRecorderIsUser(oid, user);
     return Recording.delete(oid);
   }
+
+  @Router.get("/authorize")
+  async getDeniedActions(session: SessionDoc) {
+    const user = Sessioning.getUser(session);
+    return await Authorizing.getDeniedActionByUser(user);
+  }
+
+  @Router.post("/authorize/allow")
+  async authorizeAction(session: SessionDoc, action: string, username: string) {
+    const user = (await Authing.getUserByUsername(username))._id;
+    return await Authorizing.allow(user, action);
+  }
+
+  @Router.post("/authorize/deny")
+  async denyAction(session: SessionDoc, action: string, username: string) {
+    const user = (await Authing.getUserByUsername(username))._id;
+    return await Authorizing.deny(user, action);
+  }
 }
 
 /** The web app. */

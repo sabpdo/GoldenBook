@@ -10,7 +10,7 @@ export interface RecordDoc extends BaseDoc {
 }
 
 /**
- * concept: Recording [Action]
+ * concept: Recording [User, Action]
  */
 export default class RecordingConcept {
   public readonly records: DocCollection<RecordDoc>;

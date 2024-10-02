@@ -38,12 +38,15 @@ export default class NudgingConcept {
     return await this.nudges.readMany({}, { sort: { _id: -1 } });
   }
 
-  async getFutureNudges(time: Date) {
-    return await this.nudges.readMany({ time: { $gt: new Date() } }, { sort: { time: 1 } });
+  async getFutureNudges(time?: Date) {
+    if (time == undefined) {
+      time = new Date();
+    }
+    return await this.nudges.readMany({ time: { $gt: time } }, { sort: { time: 1 } });
   }
 
-  async getBySender(to?: ObjectId, from?: ObjectId) {
-    return await this.nudges.readMany({ to: to, from: from });
+  async getBySender(from: ObjectId) {
+    return await this.nudges.readMany({ from: from });
   }
 
   async getByReceiver(to: ObjectId) {

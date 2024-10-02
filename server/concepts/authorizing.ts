@@ -4,8 +4,8 @@ import DocCollection, { BaseDoc } from "../framework/doc";
 import { NotAllowedError, NotFoundError } from "./errors";
 
 export interface AuthorizationDoc extends BaseDoc {
-    user : ObjectId;
-    denied: String;
+  user : ObjectId;
+  denied: String;
 }
 
 /**
@@ -35,12 +35,19 @@ export default class AuthorizingConcept {
     return await this.denied.readMany({ user: user });
   }
 
-  async getByAction(action: String) {
-    return await this.denied.readMany({ denied: action });
-  }
-
-  async isAllowed(user: ObjectId, action: String) {
+  async assertIsAllowed(user: ObjectId, action: String) {
     const denied = await this.denied.readOne({ user: user, denied: action });
-      return !denied;
+    if (denied) {
+      throw new UnauthorizedError(user, action);
+    }
+  }
+}
+
+export class UnauthorizedError extends NotAllowedError {
+  constructor(
+    public readonly user: ObjectId,
+    public readonly action: String,
+  ) {
+    super("{0} is not allowed to perform action {1}!", user, action);
   }
 }

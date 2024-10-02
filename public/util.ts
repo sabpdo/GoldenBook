@@ -94,7 +94,7 @@ const operations: Operation[] = [
   },
   {
     name: "Delete Message",
-    endpoint: "/api/posts/:id",
+    endpoint: "/api/messages/:id",
     method: "DELETE",
     fields: { id: "input" },
   },
@@ -133,6 +133,24 @@ const operations: Operation[] = [
     endpoint: "/api/records/:id",
     method: "DELETE",
     fields: { id: "input" },
+  },
+  {
+    name: "Get Denied Actions",
+    endpoint: "/api/authorize",
+    method: "GET",
+    fields: {},
+  },
+  {
+    name: "Authorize Action",
+    endpoint: "/api/authorize/allow",
+    method: "POST",
+    fields: { username: "input", action: "input" },
+  },
+  {
+    name: "Deny Action",
+    endpoint: "/api/authorize/deny",
+    method: "POST",
+    fields: { username: "input", action: "input" },
   }
   //
   // ...
