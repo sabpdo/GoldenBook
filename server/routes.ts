@@ -86,6 +86,7 @@ class Routes {
   @Router.post("/posts")
   async createPost(session: SessionDoc, content: string, options?: PostOptions) {
     const user = Sessioning.getUser(session);
+    await Authorizing.assertIsAllowed(user, "Post");
     const created = await Posting.create(user, content, options);
     return { msg: created.msg, post: await Responses.post(created.post) };
   }
@@ -94,6 +95,7 @@ class Routes {
   async updatePost(session: SessionDoc, id: string, content?: string, options?: PostOptions) {
     const user = Sessioning.getUser(session);
     const oid = new ObjectId(id);
+    await Authorizing.assertIsAllowed(user, "Post");
     await Posting.assertAuthorIsUser(oid, user);
     return await Posting.update(oid, content, options);
   }
@@ -102,6 +104,7 @@ class Routes {
   async deletePost(session: SessionDoc, id: string) {
     const user = Sessioning.getUser(session);
     const oid = new ObjectId(id);
+    await Authorizing.assertIsAllowed(user, "Post");
     await Posting.assertAuthorIsUser(oid, user);
     return Posting.delete(oid);
   }
@@ -116,12 +119,14 @@ class Routes {
   async removeFriend(session: SessionDoc, friend: string) {
     const user = Sessioning.getUser(session);
     const friendOid = (await Authing.getUserByUsername(friend))._id;
+    await Authorizing.assertIsAllowed(user, "Friend");
     return await Friending.removeFriend(user, friendOid);
   }
 
   @Router.get("/friend/requests")
   async getRequests(session: SessionDoc) {
     const user = Sessioning.getUser(session);
+    await Authorizing.assertIsAllowed(user, "Friend");
     return await Responses.friendRequests(await Friending.getRequests(user));
   }
 
@@ -129,6 +134,7 @@ class Routes {
   async sendFriendRequest(session: SessionDoc, to: string) {
     const user = Sessioning.getUser(session);
     const toOid = (await Authing.getUserByUsername(to))._id;
+    await Authorizing.assertIsAllowed(user, "Friend");
     return await Friending.sendRequest(user, toOid);
   }
 
@@ -136,6 +142,7 @@ class Routes {
   async removeFriendRequest(session: SessionDoc, to: string) {
     const user = Sessioning.getUser(session);
     const toOid = (await Authing.getUserByUsername(to))._id;
+    await Authorizing.assertIsAllowed(user, "Friend");
     return await Friending.removeRequest(user, toOid);
   }
 
@@ -143,6 +150,7 @@ class Routes {
   async acceptFriendRequest(session: SessionDoc, from: string) {
     const user = Sessioning.getUser(session);
     const fromOid = (await Authing.getUserByUsername(from))._id;
+    await Authorizing.assertIsAllowed(user, "Friend");
     return await Friending.acceptRequest(fromOid, user);
   }
 
@@ -150,6 +158,7 @@ class Routes {
   async rejectFriendRequest(session: SessionDoc, from: string) {
     const user = Sessioning.getUser(session);
     const fromOid = (await Authing.getUserByUsername(from))._id;
+    await Authorizing.assertIsAllowed(user, "Friend");
     return await Friending.rejectRequest(fromOid, user);
   }
 
@@ -157,6 +166,7 @@ class Routes {
   @Router.validate(z.object({ sender: z.string().optional(), receiver: z.string().optional() }))
   async getMessages(sender?: string, receiver?: string) {
     let messages;
+  
     if (sender && receiver) {
       const sender_id = (await Authing.getUserByUsername(sender))._id;
       const receiver_id = (await Authing.getUserByUsername(receiver))._id;
@@ -177,6 +187,7 @@ class Routes {
   async sendMessage(session: SessionDoc, to: string, content: string) {
     const receiver = (await Authing.getUserByUsername(to))._id;
     const sender = Sessioning.getUser(session);
+    await Authorizing.assertIsAllowed(sender, "Message");
     const created = await Messaging.create(sender, receiver, content);
     return { msg: created.msg, message: Responses.message(created.message) };
   }
@@ -185,6 +196,7 @@ class Routes {
   async deleteMessage(session: SessionDoc, id: string) {
     const user = Sessioning.getUser(session);
     const oid = new ObjectId(id);
+    await Authorizing.assertIsAllowed(user, "Message");
     await Messaging.assertSenderIsUser(oid, user);
     return Messaging.delete(oid);
   }
@@ -213,6 +225,7 @@ class Routes {
     const receiver = (await Authing.getUserByUsername(to))._id;
     const sender = Sessioning.getUser(session);
     const timeDate = time ? new Date(time) : new Date();
+    await Authorizing.assertIsAllowed(sender, "Nudge");
     const created = await Nudging.create(action, timeDate, receiver, sender);
     return { msg: created.msg, message: Responses.nudge(created.nudge) };
   }
@@ -222,6 +235,7 @@ class Routes {
     const user = Sessioning.getUser(session);
     const oid = new ObjectId(id);
     await Nudging.assertSenderIsUser(oid, user);
+    await Authorizing.assertIsAllowed(user, "Nudge");
     return Nudging.delete(oid);
   }
 
@@ -242,6 +256,7 @@ class Routes {
   async createRecord(session: SessionDoc, action: string, time?: string) {
     const user = Sessioning.getUser(session);
     const timeDate = time ? new Date(time) : new Date();
+    await Authorizing.assertIsAllowed(user, "Record");
     const created = await Recording.create(user, action, timeDate);
     return { msg: created.msg, record: Responses.record(created.record) };
   }
@@ -250,6 +265,7 @@ class Routes {
   async deleteRecord(session: SessionDoc, id: string) {
     const user = Sessioning.getUser(session);
     const oid = new ObjectId(id);
+    await Authorizing.assertIsAllowed(user, "Record");
     await Recording.assertRecorderIsUser(oid, user);
     return Recording.delete(oid);
   }
@@ -263,12 +279,14 @@ class Routes {
   @Router.post("/authorize/allow")
   async authorizeAction(session: SessionDoc, action: string, username: string) {
     const user = (await Authing.getUserByUsername(username))._id;
+    Authorizing.assertIsValidAction(action);
     return await Authorizing.allow(user, action);
   }
 
   @Router.post("/authorize/deny")
   async denyAction(session: SessionDoc, action: string, username: string) {
     const user = (await Authing.getUserByUsername(username))._id;
+    Authorizing.assertIsValidAction(action);
     return await Authorizing.deny(user, action);
   }
 }
