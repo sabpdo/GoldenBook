@@ -17,4 +17,3 @@ export const Messaging = new MessagingConcept("messages");
 export const Nudging = new NudgingConcept("nudges");
 export const Authorizing = new AuthorizingConcept("authorizations");
 export const Recording = new RecordingConcept("recordings");
-

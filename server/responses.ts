@@ -4,7 +4,7 @@ import { PostAuthorNotMatchError, PostDoc } from "./concepts/posting";
 import { MessageSenderNotMatchError, MessageDoc } from "./concepts/messaging";
 import { NudgeSenderNotMatchError, NudgeDoc } from "./concepts/nudging";
 import { RecorderNotMatchError, RecordDoc } from "./concepts/recording";
-import { UnauthorizedError, InvalidActionError  } from "./concepts/authorizing";
+import { UnauthorizedActionError, InvalidActionError, AuthorizerError, AuthorizerNotFoundError  } from "./concepts/authorizing";
 import { Router } from "./framework/router";
 
 /**
@@ -63,6 +63,9 @@ export default class Responses {
     return messages.map((message, i) => ({ ...message, from: senders[i], to: receivers[i] }));
   }
 
+  /**
+   * Convert NudgeDoc into more readable format for the frontend by converting the sender/receiver id into a username.
+   */
   static async nudge(nudge: NudgeDoc | null) {
     if (!nudge) {
       return nudge;
@@ -96,6 +99,9 @@ export default class Responses {
     return nudges.map((nudge, i) => ({ ...nudge, from: senders[i], to: receivers[i] }));
   }
 
+  /**
+   * Convert RecordDoc into more readable format for the frontend by converting the recorder id into a username.
+   */
   static async record(record: RecordDoc | null) {
     if (!record) {
       return record;
@@ -104,6 +110,9 @@ export default class Responses {
     return { ...record, recorder: recorder.username };
   }
 
+  /**
+   * Same as {@link record} but for an array of RecordDoc for improved performance.
+   */
   static async records(records: RecordDoc[]) {
     const recorders = await Authing.idsToUsernames(records.map((record) => record.user));
     return records.map((record, i) => ({ ...record, recorder: recorders[i] }));
@@ -151,11 +160,17 @@ Router.registerError(RecorderNotMatchError, async (e) => {
   return e.formatWith(username, e._id);
 });
 
-Router.registerError(UnauthorizedError, async (e) => {
+Router.registerError(UnauthorizedActionError, async (e) => {
   const username = (await Authing.getUserById(e.user)).username;
   return e.formatWith(username, e.action);
 });
 
 Router.registerError(InvalidActionError, async (e) => {
   return e.formatWith(e.action);
+});
+
+Router.registerError(AuthorizerError, async (e) => {
+  const authorizer = (await Authing.getUserById(e.authorizer)).username;
+  const authorizee = (await Authing.getUserById(e.authorizee)).username;
+  return e.formatWith(authorizer, authorizee);
 });

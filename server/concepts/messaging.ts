@@ -23,10 +23,10 @@ export default class MessagingConcept {
     this.messages = new DocCollection<MessageDoc>(collectionName);
   }
 
-  async create(to: ObjectId, from: ObjectId, content: string) {
+  async send(to: ObjectId, from: ObjectId, content: string) {
     const time = new Date();
     const _id = await this.messages.createOne({ to, from, content, time });
-    return { msg: "Message successfully created!", message: await this.messages.readOne({ _id }) };
+    return { msg: "Message successfully sent!", message: await this.messages.readOne({ _id }) };
   }
 
   async getMessages() {
