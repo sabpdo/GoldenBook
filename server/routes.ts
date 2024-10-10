@@ -84,7 +84,9 @@ class Routes {
   }
 
   /**
-    * Creates a post with the given content.
+    * Creates a post with the given content. 
+    * if the user is allowed to post, the post is created and returned.
+    * if the user's posting activity is being tracked, a record is created.
     * 
     * @param session the session of the user, the user must be allowed to post
     * @param content the text of the post
@@ -96,6 +98,9 @@ class Routes {
     const user = Sessioning.getUser(session);
     await Authorizing.assertActionIsAllowed(user, "Post");
     const created = await Posting.create(user, content, options);
+    if (await Recording.isActionAutomaticallyTracked("Post")) {
+      await Recording.create(user, "Post", new Date());
+    }
     return { msg: created.msg, post: await Responses.post(created.post) };
   }
 
@@ -245,6 +250,8 @@ class Routes {
 
   /**
    *  Sends a message from the current session user to the given username.
+   *  if the user's message activity is being tracked, a record is created.
+   * 
    * @param session  the session of the user, the user must be allowed to message
    * @param to the username of the user to send the message to, user must exist and be allowed to message
    * @param content the text of the message
@@ -256,6 +263,9 @@ class Routes {
     const sender = Sessioning.getUser(session);
     await Authorizing.assertActionIsAllowed(sender, "Message");
     await Authorizing.assertActionIsAllowed(receiver, "Message");
+    if (await Recording.isActionAutomaticallyTracked("Message")) {
+      await Recording.create(sender, "Message", new Date());
+    }
     const created = await Messaging.send(sender, receiver, content);
     return { msg: created.msg, message: Responses.message(created.message) };
   }
@@ -296,23 +306,42 @@ class Routes {
   }
 
   /**
-   * Sends a nudge from the current session user to the given username.
+   * Sends a nudge from the current session user to the given username to message.
    * @param session the session of the user, the user must be allowed to nudge
-   * @param to the username of the user to send the nudge to, user must exist and be allowed to nudge
-   * @param action the text of the nudge action, can be any string
+   * @param to the username of the user to send the nudge to, user must exist and be allowed to nudge & message
    * @param time the time of the nudge, defaults to the current time
    * @returns a dictionary with the created nudge
    */
-  @Router.post("/nudges")
-  async sendNudge(session: SessionDoc, to: string, action: string, time?: string) {
+  @Router.post("/nudges/message")
+  async sendNudgeForMessage(session: SessionDoc, to: string, time?: string) {
     const receiver = (await Authing.getUserByUsername(to))._id;
     const sender = Sessioning.getUser(session);
     const timeDate = time ? new Date(time) : new Date();
     await Authorizing.assertActionIsAllowed(sender, "Nudge");
     await Authorizing.assertActionIsAllowed(receiver, "Nudge");
-    const created = await Nudging.create(action, timeDate, receiver, sender);
+    await Authorizing.assertActionIsAllowed(receiver, "Message");
+    const created = await Nudging.create('Message', timeDate, receiver, sender);
     return { msg: created.msg, message: Responses.nudge(created.nudge) };
   }
+
+  //   /**
+  //  * Sends a nudge from the current session user to the given username to message.
+  //  * @param session the session of the user, the user must be allowed to nudge
+  //  * @param to the username of the user to send the nudge to, user must exist and be allowed to nudge & message
+  //  * @param time the time of the nudge, defaults to the current time
+  //  * @returns a dictionary with the created nudge
+  //  */
+  //   @Router.post("/nudges/message")
+  //   async setPeriodicNudgeForMessage(session: SessionDoc, to: string, startTime: string, endTime: string, frequency: string) {
+  //     const receiver = (await Authing.getUserByUsername(to))._id;
+  //     const sender = Sessioning.getUser(session);
+  //     const timeDate = time ? new Date(time) : new Date();
+  //     await Authorizing.assertActionIsAllowed(sender, "Nudge");
+  //     await Authorizing.assertActionIsAllowed(receiver, "Nudge");
+  //     await Authorizing.assertActionIsAllowed(receiver, "Message");
+  //     const created = await Nudging.create('Message', timeDate, receiver, sender);
+  //     return { msg: created.msg, message: Responses.nudge(created.nudge) };
+  //   } //TODO:
 
   /**
    * Deletes a nudge with the given id.
@@ -321,7 +350,7 @@ class Routes {
    * @param id the nudge id
    * @returns a message indicating the success of the deletion
    */
-  @Router.delete("/nudges/:id")
+  @Router.delete("/nudge/:id")
   async deleteNudge(session: SessionDoc, id: string) {
     const user = Sessioning.getUser(session);
     const oid = new ObjectId(id);
@@ -378,6 +407,39 @@ class Routes {
     return Recording.delete(oid);
   }
 
+  /**
+   * Starts automatically tracking the given actions for the current session user.
+   * @param session the session of the user, the user must be allowed to record
+   * @param action the action to track, must be "Message"|"Post"
+   * @returns a message indicating the success of the tracking
+   */
+  @Router.post("/records/track")
+  async startTracking(session: SessionDoc, action: string) {
+    const user = Sessioning.getUser(session);
+    await Authorizing.assertActionIsAllowed(user, "Record");
+    Authorizing.assertIsValidAction(action);
+    return { msg: "Tracking started!" };
+  }
+
+  /**
+   * Stops automatically tracking the given actions for the current session user.
+   * @param session the session of the user, the user must be allowed to record
+   * @param action the action to stop tracking, must be "Message"|"Post"
+   * @returns a message indicating the success of the tracking stop
+   */
+  @Router.delete("/records/track")
+  async stopTracking(session: SessionDoc, action: string) {
+    const user = Sessioning.getUser(session);
+    await Authorizing.assertActionIsAllowed(user, "Record");
+    Authorizing.assertIsValidAction(action);
+    return { msg: "Tracking stopped!" };
+  }
+
+  /**
+   * Gets the actions that the current session user is denied from performing.
+   * @param session the session of the user
+   * @returns a list of denied actions
+   */
   @Router.get("/authorize")
   async getDeniedActions(session: SessionDoc) {
     const user = Sessioning.getUser(session);
@@ -415,6 +477,20 @@ class Routes {
     Authorizing.assertIsAuthorizer(authorizer, authorizee);
     Authorizing.assertIsValidAction(action);
     return await Authorizing.deny(authorizer, action);
+  }
+
+  /**
+   * Gets the usernames of users who the current session user has authorization access and who can authorize actions on the current session user's account.
+   * 
+   * @param session the session of the user
+   * @returns a dictionary of 
+   *    "authorizers": list of usernames who the current session user has given control to
+   *    "authorizees": list of usernames who have given control to the current session user
+   */
+  @Router.get("/authorize/control")
+  async getAuthorizees(session: SessionDoc) {
+    const user = Sessioning.getUser(session);
+    return {"authorizers": await Authorizing.getAuthorizeesByAuthorizer(user), "authorizees" : await Authorizing.getAuthorizeesByAuthorizer(user)};
   }
 
   /**

@@ -61,6 +61,27 @@ export default class AuthorizingConcept {
     return await this.denied_actions.readMany({ user: user });
   }
 
+  async getAuthorizeesByAuthorizer(authorizer: ObjectId) {
+    const userMap = this.user_control_map.get(authorizer);
+    if (!this.user_control_map.has(authorizer) || (userMap != undefined && userMap.size == 0)) {
+      throw new NotFoundError("No authorizees found!");
+    } else if (this.user_control_map.has(authorizer) && userMap != undefined) {
+      return Array.from(userMap);
+    }
+  }
+
+  async getAuthorizersByAuthorizee(authorizee: ObjectId) {
+    const authorizers = Array.from(this.user_control_map.keys()).filter((authorizer) => {
+      const userMap = this.user_control_map.get(authorizer);
+      return this.user_control_map.has(authorizer) && userMap != undefined && userMap.has(authorizee);
+    });
+    if (authorizers.length == 0) {
+      throw new NotFoundError("No authorizers found!");
+    } else {
+      return authorizers;
+    }
+  }
+
   async assertIsAuthorizer(authorizer: ObjectId, authorizee: ObjectId) {
     const userMap = this.user_control_map.get(authorizer);
   

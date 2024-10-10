@@ -14,6 +14,7 @@ export interface RecordDoc extends BaseDoc {
  */
 export default class RecordingConcept {
   public readonly records: DocCollection<RecordDoc>;
+  public readonly automatic_tracked_actions: Set<String> = new Set();
 
   /**
    * Make an instance of Recording.
@@ -42,6 +43,23 @@ export default class RecordingConcept {
   async delete(_id: ObjectId) {
     await this.records.deleteOne({ _id });
     return { msg: "Record deleted successfully!" };
+  }
+
+  async startTracking(action: String) {
+    this.automatic_tracked_actions.add(action);
+    return { msg: "Action successfully tracked!" };
+  }
+
+  async stopTracking(action: String) {
+    if (!this.automatic_tracked_actions.has(action)) {
+      throw new NotFoundError(`Action ${action} is not being tracked!`);
+    }
+    this.automatic_tracked_actions.delete(action);
+    return { msg: "Action successfully untracked!" };
+  }
+
+  async isActionAutomaticallyTracked(action: String) {
+    return (this.automatic_tracked_actions.has(action));
   }
 
   async assertRecorderIsUser(_id: ObjectId, user: ObjectId) {

@@ -105,10 +105,10 @@ const operations: Operation[] = [
     fields: { sender: "input", receiver: "input", action: "input", time: "input" },
   },
   {
-    name: "Send Nudge",
-    endpoint: "/api/nudges",
+    name: "Send Nudge to Message",
+    endpoint: "/api/nudges/message",
     method: "POST",
-    fields: { to: "input", action: "input", time: "input" },
+    fields: { to: "input", time: "input" },
   },
   {
     name: "Delete Nudge",
@@ -135,7 +135,31 @@ const operations: Operation[] = [
     fields: { id: "input" },
   },
   {
-    name: "Get Denied Actions",
+    name: "Start Tracking Record",
+    endpoint: "/api/records/tracking",
+    method: "POST",
+    fields: { action: "input" },
+  },
+  {
+    name: "Stop Tracking Record",
+    endpoint: "/api/records/tracking",
+    method: "DELETE",
+    fields: { action: "input" },
+  },
+  {
+    name: "Is Action Automatically Tracked",
+    endpoint: "/api/records/tracking/:action",
+    method: "GET",
+    fields: { action: "input" },
+  },
+  {
+    name: "Get Denied Actions for User",
+    endpoint: "/api/authorize/:username",
+    method: "GET",
+    fields: { username: "input" },
+  }
+  {
+    name: "Get Denied Actions for Current User",
     endpoint: "/api/authorize",
     method: "GET",
     fields: {},
@@ -151,7 +175,25 @@ const operations: Operation[] = [
     endpoint: "/api/authorize/deny",
     method: "POST",
     fields: { username: "input", action: "input" },
-  }
+  },
+  {
+    name: "Give Authorization Permission",
+    endpoint: "/api/authorize/control",
+    method: "POST",
+    fields: { username: "input" },
+  },
+  {
+    name: "Revoke Authorization Permission",
+    endpoint: "/api/authorize/control",
+    method: "DELETE",
+    fields: { username: "input" },
+  },
+  {
+    name: "Get Authorizees and Authorizers for Current User",
+    endpoint: "/api/authorize/control/",
+    method: "GET",
+    fields: {},
+  },
   //
   // ...
   //
