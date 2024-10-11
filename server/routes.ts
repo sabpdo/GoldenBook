@@ -98,8 +98,8 @@ class Routes {
     const user = Sessioning.getUser(session);
     await Authorizing.assertActionIsAllowed(user, "Post");
     const created = await Posting.create(user, content, options);
-    if (await Recording.isActionAutomaticallyTracked("Post")) {
-      await Recording.create(user, "Post", new Date());
+    if (await Recording.isAutomatic("Post")) {
+      await Recording.create(user, "Post", new Date(), true);
     }
     return { msg: created.msg, post: await Responses.post(created.post) };
   }
@@ -263,8 +263,8 @@ class Routes {
     const sender = Sessioning.getUser(session);
     await Authorizing.assertActionIsAllowed(sender, "Message");
     await Authorizing.assertActionIsAllowed(receiver, "Message");
-    if (await Recording.isActionAutomaticallyTracked("Message")) {
-      await Recording.create(sender, "Message", new Date());
+    if (await Recording.isAutomatic("Message")) {
+      await Recording.create(sender, "Message", new Date(), true);
     }
     const created = await Messaging.send(sender, receiver, content);
     return { msg: created.msg, message: Responses.message(created.message) };
@@ -373,10 +373,10 @@ class Routes {
   }
 
   /**
-   * Creates a record with the given action.
+   * Creates a manual record with the given action.
    * 
    * @param session the session of the user, the user must be allowed to record
-   * @param action the text of the record action
+   * @param action the text of the record action, can be any generic action
    * @param time the time of the record, defaults to the current time
    * @returns a dictionary with the created record
    */
@@ -385,7 +385,8 @@ class Routes {
     const user = Sessioning.getUser(session);
     const timeDate = time ? new Date(time) : new Date();
     await Authorizing.assertActionIsAllowed(user, "Record");
-    const created = await Recording.create(user, action, timeDate);
+
+    const created = await Recording.create(user, action, timeDate, false);
     return { msg: created.msg, record: Responses.record(created.record) };
   }
 
@@ -408,31 +409,73 @@ class Routes {
   }
 
   /**
-   * Starts automatically tracking the given actions for the current session user.
-   * @param session the session of the user, the user must be allowed to record
-   * @param action the action to track, must be "Message"|"Post"
-   * @returns a message indicating the success of the tracking
+   *  Creates an automatic record for the current session user for messaging.
+   *  Indicates that automatic records will start for their messaging activity.
+   * 
+   * @param session the session of the user, the user must be allowed to record and message
+   * @returns a dictionary with the created record
    */
-  @Router.post("/records/track")
-  async startTracking(session: SessionDoc, action: string) {
+  @Router.post("/records/automatic/messaging")
+  async startAutomaticRecordForMessaging(session: SessionDoc) {
     const user = Sessioning.getUser(session);
     await Authorizing.assertActionIsAllowed(user, "Record");
-    Authorizing.assertIsValidAction(action);
-    return { msg: "Tracking started!" };
+    await Authorizing.assertActionIsAllowed(user, "Message");
+
+    const created = await Recording.create(user, "Message", new Date(), true);
+    return { msg: created.msg, record: Responses.record(created.record) };
   }
 
   /**
-   * Stops automatically tracking the given actions for the current session user.
-   * @param session the session of the user, the user must be allowed to record
-   * @param action the action to stop tracking, must be "Message"|"Post"
-   * @returns a message indicating the success of the tracking stop
+   *  Stops automatic recording for the current session user for messaging.
+   *  Indicates that automatic records will stop for future messaging activity
+   *  by creating a .
+   * 
+   * @param session the session of the user, the user must be allowed to record and message
+   * @returns a dictionary with the created record
    */
-  @Router.delete("/records/track")
-  async stopTracking(session: SessionDoc, action: string) {
+  @Router.delete("/records/automatic/messaging")
+  async stopAutomaticRecordForMessaging(session: SessionDoc) {
     const user = Sessioning.getUser(session);
     await Authorizing.assertActionIsAllowed(user, "Record");
-    Authorizing.assertIsValidAction(action);
-    return { msg: "Tracking stopped!" };
+    await Authorizing.assertActionIsAllowed(user, "Message");
+
+    const created = await Recording.create(user, "Message", new Date(), false);
+    return { msg: created.msg, record: Responses.record(created.record) };
+  }
+
+  /**
+   *  Creates an automatic record for the current session user for posting.
+   *  Indicates that automatic records will start for their posting activity.
+   * 
+   * @param session the session of the user, the user must be allowed to record and post
+   * @returns a dictionary with the created record
+   */
+  @Router.post("/records/automatic/posting")
+  async startAutomaticRecordForPosting(session: SessionDoc, time?: string) {
+    const user = Sessioning.getUser(session);
+    const timeDate = time ? new Date(time) : new Date();
+    await Authorizing.assertActionIsAllowed(user, "Record");
+    await Authorizing.assertActionIsAllowed(user, "Post");
+
+    const created = await Recording.create(user, "Post", timeDate, true);
+    return { msg: created.msg, record: Responses.record(created.record) };
+  }
+
+  /**
+   *  Stops automatic recording for the current session user for posting.
+   *  Indicates that automatic records will stop for future posting activity TODO:
+   * 
+   * @param session the session of the user, the user must be allowed to record and post
+   * @returns a dictionary with the created record
+   */
+  @Router.delete("/records/automatic/posting")
+  async stopAutomaticRecordForPosting(session: SessionDoc) {
+    const user = Sessioning.getUser(session);
+    await Authorizing.assertActionIsAllowed(user, "Record");
+    await Authorizing.assertActionIsAllowed(user, "Post");
+
+    const created = await Recording.create(user, "Post", new Date(), false);
+    return { msg: created.msg, record: Responses.record(created.record) };
   }
 
   /**
@@ -441,42 +484,135 @@ class Routes {
    * @returns a list of denied actions
    */
   @Router.get("/authorize")
-  async getDeniedActions(session: SessionDoc) {
+  async getCurrentUserDeniedActions(session: SessionDoc) {
     const user = Sessioning.getUser(session);
     return await Authorizing.getDeniedActionByUser(user);
   }
 
-  /**
-   * Allows the given username to perform the given action.
-   * @param session  the session of the user, the user must be allowed to authorize actions on the target username's account
-   * @param action the action to allow, must be a valid action ("Message"|"Friend"|"Nudge"|"Record"|"Post")
-   * @param username the username to allow the action for
-   * @returns  a dictionary with the allowed action
+   /**
+   * Gets the actions that the parametrized user is denied from performing.
+   * @returns a list of denied actions
    */
-  @Router.post("/authorize/allow")
-  async authorizeAction(session: SessionDoc, action: string, username: string) {
-    const authorizer = Sessioning.getUser(session);
-    const authorizee = (await Authing.getUserByUsername(username))._id;
-    Authorizing.assertIsAuthorizer(authorizer, authorizee);
-    Authorizing.assertIsValidAction(action);
-    return await Authorizing.allow(authorizee, action);
+  @Router.get("/authorize/:username")
+  async getDeniedActions(username: string) {
+    const userOid = (await Authing.getUserByUsername(username))._id;
+    return await Authorizing.getDeniedActionByUser(userOid);
   }
 
   /**
-   * Denies the given username from performing the given action.
+   * Allows the given username to perform all messaging actions.
+   * @param session  the session of the user, the user must be allowed to authorize actions on the target username's account
+   * @param username the username to allow messaging for
+   * @returns  a dictionary with the allowed action
+   */
+  @Router.post("/authorize/allow/message")
+  async authorizeMessaging(session: SessionDoc, username: string) {
+    const authorizer = Sessioning.getUser(session);
+    const authorizee = (await Authing.getUserByUsername(username))._id;
+    Authorizing.assertIsAuthorizer(authorizer, authorizee);
+    return await Authorizing.allow(authorizee, "Message");
+  }
+
+  /**
+   * Denies the given username from performing all messaging actions.
    * 
    * @param session the session of the user, the user must be allowed to authorize actions on the target username's account
-   * @param action the action to deny, must be a valid action ("Message"|"Friend"|"Nudge"|"Record"|"Post")
-   * @param username the username to deny the action for
+   * @param username the username to deny messaging for
    * @returns a dictionary with the denied action
    */
-  @Router.post("/authorize/deny")
-  async denyAction(session: SessionDoc, action: string, username: string) {
+  @Router.post("/authorize/deny/message")
+  async denyMessaging(session: SessionDoc, username: string) {
     const authorizee = (await Authing.getUserByUsername(username))._id;
     const authorizer = Sessioning.getUser(session);
     Authorizing.assertIsAuthorizer(authorizer, authorizee);
-    Authorizing.assertIsValidAction(action);
-    return await Authorizing.deny(authorizer, action);
+    return await Authorizing.deny(authorizer, "Message");
+  }
+
+  /**
+   * Allows the given username to perform all posting actions.
+   * @param session  the session of the user, the user must be allowed to authorize actions on the target username's account
+   * @param username the username to allow posting for
+   * @returns  a dictionary with the allowed action
+   */
+  @Router.post("/authorize/allow/post")
+  async authorizePosting(session: SessionDoc, username: string) {
+    const authorizer = Sessioning.getUser(session);
+    const authorizee = (await Authing.getUserByUsername(username))._id;
+    Authorizing.assertIsAuthorizer(authorizer, authorizee);
+    return await Authorizing.allow(authorizee, "Post");
+  }
+
+  /**
+   * Denies the given username from performing all posting actions.
+   * 
+   * @param session the session of the user, the user must be allowed to authorize actions on the target username's account
+   * @param username the username to deny posting for
+   * @returns a dictionary with the denied action
+   */
+  @Router.post("/authorize/deny/post")
+  async denyPosting(session: SessionDoc, username: string) {
+    const authorizee = (await Authing.getUserByUsername(username))._id;
+    const authorizer = Sessioning.getUser(session);
+    Authorizing.assertIsAuthorizer(authorizer, authorizee);
+    return await Authorizing.deny(authorizer, "Message");
+  }
+
+  /**
+   * Allows the given username to perform all nudging actions.
+   * @param session  the session of the user, the user must be allowed to authorize actions on the target username's account
+   * @param username the username to allow nudging for
+   * @returns  a dictionary with the allowed action
+   */
+  @Router.post("/authorize/allow/nudge")
+  async authorizeNudge(session: SessionDoc, username: string) {
+    const authorizer = Sessioning.getUser(session);
+    const authorizee = (await Authing.getUserByUsername(username))._id;
+    Authorizing.assertIsAuthorizer(authorizer, authorizee);
+    return await Authorizing.allow(authorizee, "Nudge");
+  }
+
+  /**
+   * Denies the given username from performing all nudging actions.
+   * 
+   * @param session the session of the user, the user must be allowed to authorize actions on the target username's account
+   * @param username the username to deny nudging for
+   * @returns a dictionary with the denied action
+   */
+  @Router.post("/authorize/deny/nudge")
+  async denyNudging(session: SessionDoc, username: string) {
+    const authorizee = (await Authing.getUserByUsername(username))._id;
+    const authorizer = Sessioning.getUser(session);
+    Authorizing.assertIsAuthorizer(authorizer, authorizee);
+    return await Authorizing.deny(authorizer, "Nudge");
+  }
+
+  /**
+   * Allows the given username to perform all recording actions.
+   * @param session  the session of the user, the user must be allowed to authorize actions on the target username's account
+   * @param username the username to allow recording for
+   * @returns  a dictionary with the allowed authorization
+   */
+  @Router.post("/authorize/allow/record")
+  async authorizeRecord(session: SessionDoc, username: string) {
+    const authorizer = Sessioning.getUser(session);
+    const authorizee = (await Authing.getUserByUsername(username))._id;
+    Authorizing.assertIsAuthorizer(authorizer, authorizee);
+    return await Authorizing.allow(authorizee, "Record");
+  }
+
+  /**
+   * Denies the given username from performing all recording actions.
+   * 
+   * @param session the session of the user, the user must be allowed to authorize actions on the target username's account
+   * @param username the username to deny recording for
+   * @returns a dictionary with the denied action
+   */
+  @Router.post("/authorize/deny/record")
+  async denyRecording(session: SessionDoc, username: string) {
+    const authorizee = (await Authing.getUserByUsername(username))._id;
+    const authorizer = Sessioning.getUser(session);
+    Authorizing.assertIsAuthorizer(authorizer, authorizee);
+    return await Authorizing.deny(authorizer, "Record");
   }
 
   /**
@@ -488,9 +624,20 @@ class Routes {
    *    "authorizees": list of usernames who have given control to the current session user
    */
   @Router.get("/authorize/control")
-  async getAuthorizees(session: SessionDoc) {
+  async getAuthorizations(session: SessionDoc) {
     const user = Sessioning.getUser(session);
-    return {"authorizers": await Authorizing.getAuthorizeesByAuthorizer(user), "authorizees" : await Authorizing.getAuthorizeesByAuthorizer(user)};
+    const authorizers = await Authorizing.getAuthorizersByAuthorizee(user);
+    const authorizees = await Authorizing.getAuthorizeesByAuthorizer(user);
+    let authorizers_strings = new Array<string>();
+    let authorizees_strings = new Array<string>();
+
+    if (authorizers != undefined) {
+      const authorizers_strings = await Authing.idsToUsernames(authorizers);
+    } 
+    if (authorizees != undefined) {
+      const authorizees_strings = await Authing.idsToUsernames(authorizees);
+    }
+    return {"authorizers": authorizers_strings, "authorizees": authorizees_strings};
   }
 
   /**

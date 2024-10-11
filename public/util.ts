@@ -135,29 +135,35 @@ const operations: Operation[] = [
     fields: { id: "input" },
   },
   {
-    name: "Start Tracking Record",
-    endpoint: "/api/records/tracking",
+    name: "Start Automatic Recording of Messaging",
+    endpoint: "/api/records/automatic/messaging",
     method: "POST",
-    fields: { action: "input" },
+    fields: {},
   },
   {
-    name: "Stop Tracking Record",
-    endpoint: "/api/records/tracking",
+    name: "Stop Automatic Recording of Messaging",
+    endpoint: "/api/records/automatic/messaging",
     method: "DELETE",
-    fields: { action: "input" },
+    fields: {},
   },
   {
-    name: "Is Action Automatically Tracked",
-    endpoint: "/api/records/tracking/:action",
-    method: "GET",
-    fields: { action: "input" },
+    name: "Start Automatic Recording of Posting",
+    endpoint: "/api/records/automatic/posting",
+    method: "POST",
+    fields: {},
+  },
+  {
+    name: "Stop Automatic Recording of Posting",
+    endpoint: "/api/records/automatic/posting",
+    method: "DELETE",
+    fields: {},
   },
   {
     name: "Get Denied Actions for User",
     endpoint: "/api/authorize/:username",
     method: "GET",
     fields: { username: "input" },
-  }
+  },
   {
     name: "Get Denied Actions for Current User",
     endpoint: "/api/authorize",
@@ -165,19 +171,55 @@ const operations: Operation[] = [
     fields: {},
   },
   {
-    name: "Authorize Action",
-    endpoint: "/api/authorize/allow",
+    name: "Authorize Message",
+    endpoint: "/api/authorize/allow/message",
     method: "POST",
-    fields: { username: "input", action: "input" },
+    fields: { username: "input" },
   },
   {
-    name: "Deny Action",
-    endpoint: "/api/authorize/deny",
+    name: "Deny Message",
+    endpoint: "/api/authorize/deny/message",
     method: "POST",
-    fields: { username: "input", action: "input" },
+    fields: { username: "input" },
   },
   {
-    name: "Give Authorization Permission",
+    name: "Allow Post",
+    endpoint: "/api/authorize/allow/post",
+    method: "POST",
+    fields: { username: "input" },
+  },
+  {
+    name: "Deny Post",
+    endpoint: "/api/authorize/deny/post",
+    method: "POST",
+    fields: { username: "input" },
+  },
+  {
+    name: "Authorize Nudge",
+    endpoint: "/api/authorize/allow/nudge",
+    method: "POST",
+    fields: { username: "input" },
+  },
+  {
+    name: "Deny Nudge",
+    endpoint: "/api/authorize/deny/nudge",
+    method: "POST",
+    fields: { username: "input" },
+  },
+  {
+    name: "Authorize Record",
+    endpoint: "/api/authorize/allow/record",
+    method: "POST",
+    fields: { username: "input" },
+  },
+  {
+    name: "Deny Record",
+    endpoint: "/api/authorize/deny/record",
+    method: "POST",
+    fields: { username: "input" },
+  },
+  {
+    name: "Give Authorization Control",
     endpoint: "/api/authorize/control",
     method: "POST",
     fields: { username: "input" },
@@ -194,9 +236,6 @@ const operations: Operation[] = [
     method: "GET",
     fields: {},
   },
-  //
-  // ...
-  //
 ];
 
 /*

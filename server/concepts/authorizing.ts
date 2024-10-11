@@ -3,11 +3,9 @@ import { ObjectId } from "mongodb";
 import DocCollection, { BaseDoc } from "../framework/doc";
 import { BadValuesError, NotAllowedError, NotFoundError } from "./errors";
 
-type DeniedAction = "Message"|"Friend"|"Nudge"|"Record"|"Post";
-
 export interface AuthorizationDoc extends BaseDoc {
   user : ObjectId;
-  action: DeniedAction;
+  action: String;
 }
 
 /**
@@ -26,14 +24,12 @@ export default class AuthorizingConcept {
   }
 
   async allow(user: ObjectId, action: String) {
-    const denied_action = action as DeniedAction;
-    const _id = await this.denied_actions.deleteMany({ user: user, action: denied_action });
+    const _id = await this.denied_actions.deleteMany({ user: user, action: action });
     return { msg: "Action successfully allowed!", allowed: await this.denied_actions.readOne({ _id }) };
   }
 
   async deny(user: ObjectId, action: String) {
-    const denied_action = action as DeniedAction;
-    const _id = await this.denied_actions.createOne({ user, action: denied_action });
+    const _id = await this.denied_actions.createOne({ user, action: action });
     return { msg: "Action successfully denied!", denied: await this.denied_actions.readOne({ _id }) };
   }
 
@@ -91,18 +87,9 @@ export default class AuthorizingConcept {
   }
 
   async assertActionIsAllowed(user: ObjectId, action: String) {
-    const denied_ation = action as DeniedAction;
-    const denied = await this.denied_actions.readOne({ user: user, action: denied_ation });
+    const denied = await this.denied_actions.readOne({ user: user, action: action });
     if (denied) {
       throw new UnauthorizedActionError(user, action);
-    }
-  }
-
-  async assertIsValidAction(action: String) {
-    const validActions: DeniedAction[] = ["Message", "Friend", "Nudge", "Record", "Post"];
-  
-    if (!validActions.includes(action as DeniedAction)) {
-      throw new InvalidActionError("Invalid action!");
     }
   }
 }
@@ -113,14 +100,6 @@ export class UnauthorizedActionError extends NotAllowedError {
     public readonly action: String,
   ) {
     super("{0} is not allowed to perform action {1}!", user, action);
-  }
-}
-
-export class InvalidActionError extends BadValuesError {
-  constructor(
-    public readonly action: String,
-  ) {
-    super("{0} is an invalid action to authorize!", action);
   }
 }
 
