@@ -117,6 +117,12 @@ const operations: Operation[] = [
     fields: { id: "input" },
   },
   {
+    name: "Create Periodic Nudge",
+    endpoint: "/api/nudges/message/periodic",
+    method: "POST",
+    fields: { to: "input", action: "input", start: "input", end: "input", frequency: "input" },
+  },
+  {
     name: "Get Records",
     endpoint: "/api/records",
     method: "GET",

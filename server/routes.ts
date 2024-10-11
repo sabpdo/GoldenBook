@@ -253,8 +253,8 @@ class Routes {
    * @param to the username of the user to send the nudge to, user must exist and be allowed to nudge & message, if not given, nudge is sent to the current session user
    * @returns a dictionary with the created nudges
    */
-  @Router.post("/nudges/message")
-  async setPeriodicNudgeForMessage(session: SessionDoc, startTime: string, endTime: string, frequency: number, to?: string) {
+  @Router.post("/nudges/message/periodic")
+  async createPeriodicNudgeForMessage(session: SessionDoc, startTime: string, endTime: string, frequency: number, to?: string) {
     let toUser;
     if (to) {
       toUser = (await Authing.getUserByUsername(to))._id;

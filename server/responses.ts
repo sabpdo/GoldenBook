@@ -105,8 +105,6 @@ export default class Responses {
     const recorders = await Authing.idsToUsernames(records.map((record) => record.user));
     return records.map((record, i) => ({ ...record, recorder: recorders[i] }));
   }
-
-
 }
 
 Router.registerError(PostAuthorNotMatchError, async (e) => {
