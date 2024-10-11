@@ -286,6 +286,15 @@ class Routes {
     return Messaging.delete(oid);
   }
 
+  /**
+   *  Gets all nudges based off input parameters. If no parameters are given, all nudges are returned by default.
+   *  Otherwise, the nudges are filtered by the given parameters.
+   * 
+   * @param sender username of a valid user
+   * @param receiver username of a valid user
+   * @param time the earliest time of the nudges to return
+   * @returns nudges that match the given parameters
+   */
   @Router.get("/nudges")
   @Router.validate(z.object({ sender: z.string().optional(), receiver: z.string().optional(), time: z.string().optional() }))
   async getNudges(sender?: string, receiver?: string, time?: string) {
@@ -324,24 +333,23 @@ class Routes {
     return { msg: created.msg, message: Responses.nudge(created.nudge) };
   }
 
-  //   /**
-  //  * Sends a nudge from the current session user to the given username to message.
-  //  * @param session the session of the user, the user must be allowed to nudge
-  //  * @param to the username of the user to send the nudge to, user must exist and be allowed to nudge & message
-  //  * @param time the time of the nudge, defaults to the current time
-  //  * @returns a dictionary with the created nudge
-  //  */
-  //   @Router.post("/nudges/message")
-  //   async setPeriodicNudgeForMessage(session: SessionDoc, to: string, startTime: string, endTime: string, frequency: string) {
-  //     const receiver = (await Authing.getUserByUsername(to))._id;
-  //     const sender = Sessioning.getUser(session);
-  //     const timeDate = time ? new Date(time) : new Date();
-  //     await Authorizing.assertActionIsAllowed(sender, "Nudge");
-  //     await Authorizing.assertActionIsAllowed(receiver, "Nudge");
-  //     await Authorizing.assertActionIsAllowed(receiver, "Message");
-  //     const created = await Nudging.create('Message', timeDate, receiver, sender);
-  //     return { msg: created.msg, message: Responses.nudge(created.nudge) };
-  //   } //TODO:
+  /**
+   * Creates nudges for the current session user to perform an action from the listed parameters.
+   * @param session the session of the user, the user must be allowed to nudge
+   * @param to the username of the user to send the nudge to, user must exist and be allowed to nudge & message
+   * @param time the time of the nudge, defaults to the current time
+   * @returns a dictionary with the created nudge
+   */
+  @Router.post("/nudges/message")
+  async setPeriodicNudgeForMessage(session: SessionDoc, to: string, startTime: string, endTime: string, frequency: string) {
+    const receiver = (await Authing.getUserByUsername(to))._id;
+    const sender = Sessioning.getUser(session);
+    const timeDate = time ? new Date(time) : new Date();
+    await Authorizing.assertActionIsAllowed(receiver, "Nudge");
+    await Authorizing.assertActionIsAllowed(receiver, "Message");
+    const created = await Nudging.create('Message', timeDate, receiver, sender);
+    return { msg: created.msg, message: Responses.nudge(created.nudge) };
+  } 
 
   /**
    * Deletes a nudge with the given id.
@@ -632,10 +640,10 @@ class Routes {
     let authorizees_strings = new Array<string>();
 
     if (authorizers != undefined) {
-      const authorizers_strings = await Authing.idsToUsernames(authorizers);
+      authorizers_strings = await Authing.idsToUsernames(authorizers);
     } 
     if (authorizees != undefined) {
-      const authorizees_strings = await Authing.idsToUsernames(authorizees);
+      authorizees_strings = await Authing.idsToUsernames(authorizees);
     }
     return {"authorizers": authorizers_strings, "authorizees": authorizees_strings};
   }
