@@ -138,95 +138,6 @@ class Routes {
     return Posting.delete(oid);
   }
 
-  @Router.get("/friends")
-  async getFriends(session: SessionDoc) {
-    const user = Sessioning.getUser(session);
-    return await Authing.idsToUsernames(await Friending.getFriends(user));
-  }
-
-  /**
-   * Deletes a friend with the given username for the current session user.
-   * 
-   * @param session the session of the user, the user must be allowed to friend
-   * @param friend the username of the friend to remove, user must exist
-   * @returns a message indicating the success of the deletion
-   */
-  @Router.delete("/friends/:friend")
-  async removeFriend(session: SessionDoc, friend: string) {
-    const user = Sessioning.getUser(session);
-    const friendOid = (await Authing.getUserByUsername(friend))._id;
-    await Authorizing.assertActionIsAllowed(user, "Friend");
-    return await Friending.removeFriend(user, friendOid);
-  }
-
-  @Router.get("/friend/requests")
-  async getRequests(session: SessionDoc) {
-    const user = Sessioning.getUser(session);
-    return await Responses.friendRequests(await Friending.getRequests(user));
-  }
-
-  /**
-   * Sends a friend request from the current session user to the given username.
-   * 
-   * @param session the session of the user, the user must be allowed to friend
-   * @param to the username of the user to send the request to, user must exist and be allowed to friend
-   * @returns a message indicating the success of the request
-   */
-  @Router.post("/friend/requests/:to")
-  async sendFriendRequest(session: SessionDoc, to: string) {
-    const user = Sessioning.getUser(session);
-    const receiver = (await Authing.getUserByUsername(to))._id;
-    await Authorizing.assertActionIsAllowed(user, "Friend");
-    await Authorizing.assertActionIsAllowed(receiver, "Friend");
-    return await Friending.sendRequest(user, receiver);
-  }
-
-  /**
-   * Removes a friend request from the current session user to the given username.
-   * 
-   * @param session the session of the user, the user must be allowed to friend
-   * @param to, the username of the user to remove the request to, user must exist and be allowed to friend
-   * @returns a message indicating the success of the removal
-   */
-  @Router.delete("/friend/requests/:to")
-  async removeFriendRequest(session: SessionDoc, to: string) {
-    const user = Sessioning.getUser(session);
-    const toOid = (await Authing.getUserByUsername(to))._id;
-    await Authorizing.assertActionIsAllowed(user, "Friend");
-    await Authorizing.assertActionIsAllowed(toOid, "Friend");
-    return await Friending.removeRequest(user, toOid);
-  }
-
-  /**
-   *  Accepts a friend request from the given username.
-   * 
-   * @param session the session of the user, the user must be allowed to friend
-   * @param from  the username of the user to accept the request from, user must exist
-   * @returns a message indicating the success of the acceptance
-   */
-  @Router.put("/friend/accept/:from")
-  async acceptFriendRequest(session: SessionDoc, from: string) {
-    const user = Sessioning.getUser(session);
-    const fromOid = (await Authing.getUserByUsername(from))._id;
-    await Authorizing.assertActionIsAllowed(user, "Friend");
-    return await Friending.acceptRequest(fromOid, user);
-  }
-
-  /**
-   * Rejects a friend request from the given username.
-   * 
-   * @param session the session of the user, the user must be allowed to friend
-   * @param from the username of the user to reject the request from, user must exist
-   * @returns a message indicating the success of the rejection
-   */
-  @Router.put("/friend/reject/:from")
-  async rejectFriendRequest(session: SessionDoc, from: string) {
-    const user = Sessioning.getUser(session);
-    const fromOid = (await Authing.getUserByUsername(from))._id;
-    await Authorizing.assertActionIsAllowed(user, "Friend");
-    return await Friending.rejectRequest(fromOid, user);
-  }
-
   @Router.get("/messages")
   @Router.validate(z.object({ sender: z.string().optional(), receiver: z.string().optional() }))
   async getMessages(sender?: string, receiver?: string) {
@@ -330,25 +241,33 @@ class Routes {
     await Authorizing.assertActionIsAllowed(receiver, "Nudge");
     await Authorizing.assertActionIsAllowed(receiver, "Message");
     const created = await Nudging.create('Message', timeDate, receiver, sender);
-    return { msg: created.msg, message: Responses.nudge(created.nudge) };
+    return { msg: created.msg, nudge: Responses.nudge(created.nudge) };
   }
 
   /**
-   * Creates nudges for the current session user to perform an action from the listed parameters.
-   * @param session the session of the user, the user must be allowed to nudge
-   * @param to the username of the user to send the nudge to, user must exist and be allowed to nudge & message
-   * @param time the time of the nudge, defaults to the current time
-   * @returns a dictionary with the created nudge
+   * Creates multiple nudges for the current session user to perform an action for the given time parameters.
+   * @param session the session of the user, the user must be allowed to nudge and message
+   * @param startTime the start time of the nudges, must be after or equal to the current time
+   * @param endTime the end time of the nudges, must be after the start time
+   * @param frequency how frequently the nudges should be sent, in number of days, must be integer > 0
+   * @param to the username of the user to send the nudge to, user must exist and be allowed to nudge & message, if not given, nudge is sent to the current session user
+   * @returns a dictionary with the created nudges
    */
   @Router.post("/nudges/message")
-  async setPeriodicNudgeForMessage(session: SessionDoc, to: string, startTime: string, endTime: string, frequency: string) {
-    const receiver = (await Authing.getUserByUsername(to))._id;
-    const sender = Sessioning.getUser(session);
-    const timeDate = time ? new Date(time) : new Date();
-    await Authorizing.assertActionIsAllowed(receiver, "Nudge");
-    await Authorizing.assertActionIsAllowed(receiver, "Message");
-    const created = await Nudging.create('Message', timeDate, receiver, sender);
-    return { msg: created.msg, message: Responses.nudge(created.nudge) };
+  async setPeriodicNudgeForMessage(session: SessionDoc, startTime: string, endTime: string, frequency: number, to?: string) {
+    let toUser;
+    if (to) {
+      toUser = (await Authing.getUserByUsername(to))._id;
+      await Authorizing.assertActionIsAllowed(toUser, "Nudge");
+      await Authorizing.assertActionIsAllowed(toUser, "Message");
+    } else {
+      toUser = Sessioning.getUser(session);
+    }
+    const from = Sessioning.getUser(session);
+    await Authorizing.assertActionIsAllowed(from, "Nudge");
+    await Authorizing.assertActionIsAllowed(from, "Message");
+    const created = await Nudging.createMany('Message', new Date(startTime), new Date(endTime), frequency, toUser, from);
+    return { msg: created.msg, nudges: Responses.nudges(created.nudges) };
   } 
 
   /**

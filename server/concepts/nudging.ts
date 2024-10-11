@@ -34,6 +34,35 @@ export default class NudgingConcept {
     return { msg: "Nudge successfully created!", nudge: await this.nudges.readOne({ _id }) };
   }
 
+  /**
+   * Creates many nudges for the future starting from the start date to the end date with the given frequency.
+   * @param action  action to be performed
+   * @param start date to start nudging, must be now or in the future
+   * @param end  date to stop nudging, must be in the future, end > start
+   * @param frequency how often the nudge should be sent in integer days, must be greater than 0
+   */
+  async createMany(action: string, start: Date, end: Date, frequency: number, to?: ObjectId, from?: ObjectId) {
+    if (start < new Date()) {
+      throw new NotAllowedError("Start date must be now or in the future!");
+    }
+    if (end < start) {
+      throw new NotAllowedError("End date must be in the future and greater than start date!");
+    }
+    if (frequency < 1 || !Number.isInteger(frequency)) {
+      throw new NotAllowedError("Frequency must be an integer greater than 0!");
+    }
+    let time = new Date(start);
+    const nudge_ids = [];
+    while (time <= end) {
+      const nudge = this.nudges.createOne({ to, from, action, time })
+      nudge_ids.push(nudge);
+      time.setDate(time.getDate() + frequency);
+    }
+
+    const nudges = await this.nudges.readMany({ _id: { $in: await Promise.all(nudge_ids) } });
+    return { msg: "Nudges successfully created!", nudges: nudges };
+  }
+
   async getNudges() {
     return await this.nudges.readMany({}, { sort: { _id: -1 } });
   }
