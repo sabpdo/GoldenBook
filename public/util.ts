@@ -111,22 +111,22 @@ const operations: Operation[] = [
     fields: { to: "input", time: "input" },
   },
   {
+    name: "Send Periodic Nudge",
+    endpoint: "/api/nudges/message/periodic",
+    method: "POST",
+    fields: { to: "input", action: "input", start: "input", end: "input", frequency: "input" },
+  },
+  {
     name: "Delete Nudge",
     endpoint: "/api/nudges/:id",
     method: "DELETE",
     fields: { id: "input" },
   },
   {
-    name: "Create Periodic Nudge",
-    endpoint: "/api/nudges/message/periodic",
-    method: "POST",
-    fields: { to: "input", action: "input", start: "input", end: "input", frequency: "input" },
-  },
-  {
     name: "Get Records",
     endpoint: "/api/records",
     method: "GET",
-    fields: { recorder: "input" },
+    fields: { receiver: "input" },
   },
   {
     name: "Create Record",
@@ -141,26 +141,26 @@ const operations: Operation[] = [
     fields: { id: "input" },
   },
   {
-    name: "Start Automatic Recording of Messaging",
-    endpoint: "/api/records/automatic/messaging",
+    name: "Start Automatic Recording of Message Activity",
+    endpoint: "/api/records/automatic/message",
     method: "POST",
     fields: {},
   },
   {
     name: "Stop Automatic Recording of Messaging",
-    endpoint: "/api/records/automatic/messaging",
+    endpoint: "/api/records/automatic/message",
     method: "DELETE",
     fields: {},
   },
   {
     name: "Start Automatic Recording of Posting",
-    endpoint: "/api/records/automatic/posting",
+    endpoint: "/api/records/automatic/post",
     method: "POST",
     fields: {},
   },
   {
     name: "Stop Automatic Recording of Posting",
-    endpoint: "/api/records/automatic/posting",
+    endpoint: "/api/records/automatic/post",
     method: "DELETE",
     fields: {},
   },
@@ -225,7 +225,13 @@ const operations: Operation[] = [
     fields: { username: "input" },
   },
   {
-    name: "Give Authorization Control",
+    name: "Get Authorizees and Authorizers for Current User",
+    endpoint: "/api/authorize/control",
+    method: "GET",
+    fields: {},
+  },
+  {
+    name: "Give Authorization Permission",
     endpoint: "/api/authorize/control",
     method: "POST",
     fields: { username: "input" },
@@ -235,12 +241,6 @@ const operations: Operation[] = [
     endpoint: "/api/authorize/control",
     method: "DELETE",
     fields: { username: "input" },
-  },
-  {
-    name: "Get Authorizees and Authorizers for Current User",
-    endpoint: "/api/authorize/control/",
-    method: "GET",
-    fields: {},
   },
 ];
 

@@ -58,6 +58,11 @@ export default class AuthenticatingConcept {
     return ids.map((id) => idToUser.get(id.toString())?.username ?? "DELETED_USER");
   }
 
+  async idToUsername(id: ObjectId) {
+    const user = await this.users.readOne({ _id: id });
+    return user?.username ?? "DELETED_USER";
+  }
+
   async getUsers(username?: string) {
     // If username is undefined, return all users by applying empty filter
     const filter = username ? { username } : {};

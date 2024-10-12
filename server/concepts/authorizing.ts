@@ -4,7 +4,7 @@ import DocCollection, { BaseDoc } from "../framework/doc";
 import { BadValuesError, NotAllowedError, NotFoundError } from "./errors";
 
 export interface AuthorizationDoc extends BaseDoc {
-  user : ObjectId;
+  user: ObjectId;
   action: String;
 }
 
@@ -24,13 +24,13 @@ export default class AuthorizingConcept {
   }
 
   async allow(user: ObjectId, action: String) {
-    const _id = await this.denied_actions.deleteMany({ user: user, action: action });
-    return { msg: "Action successfully allowed!", allowed: await this.denied_actions.readOne({ _id }) };
+    await this.denied_actions.deleteMany({ user: user, action: action });
+    return { msg: "Action successfully allowed!", user: user, action: action };
   }
 
   async deny(user: ObjectId, action: String) {
     const _id = await this.denied_actions.createOne({ user, action: action });
-    return { msg: "Action successfully denied!", denied: await this.denied_actions.readOne({ _id }) };
+    return { msg: "Action successfully denied!", authorization: await this.denied_actions.readOne({ _id }) };
   }
 
   async addAuthorizer(authorizer: ObjectId, authorizee: ObjectId) {

@@ -7,7 +7,6 @@ export interface RecordDoc extends BaseDoc {
   user: ObjectId;
   action: String;
   time: Date;
-  automatic: Boolean;
 }
 
 /**
@@ -15,16 +14,18 @@ export interface RecordDoc extends BaseDoc {
  */
 export default class RecordingConcept {
   public readonly records: DocCollection<RecordDoc>;
+  public readonly autotracked_records: Map<ObjectId, Set<string>>;
 
   /**
    * Make an instance of Recording.
    */
   constructor(collectionName: string) {
     this.records = new DocCollection<RecordDoc>(collectionName);
+    this.autotracked_records = new Map();
   }
 
-  async create(user: ObjectId, action: string, time: Date, automatic: Boolean) {
-    const _id = await this.records.createOne({ user, action, time, automatic });
+  async create(user: ObjectId, action: string, time: Date) {
+    const _id = await this.records.createOne({ user, action, time });
     return { msg: "Record successfully created!", record: await this.records.readOne({ _id }) };
   }
 
@@ -50,16 +51,36 @@ export default class RecordingConcept {
   }
   
   /**
-   *  Determines if the action is automatic, based off the status of the most recent record.
+   *  Determines if the action is automatic.
    */
-  async isAutomatic(action: String) {
-    const records = await this.records.readMany({action}, {sort: { time: -1 }});
-  
-    if (records == null) {
-      throw new NotFoundError("Record not found.");
-    }
-    return records[0].automatic;
+  async isAutomatic(user: ObjectId, action: string) {
+    const user_tracked_actions = this.autotracked_records.get(user);
+    return (user_tracked_actions) ? user_tracked_actions.has(action) : false;
   }  
+
+  /**
+   *  Starts automatic recording of the given action.
+   */
+  async startAutomaticRecording(user: ObjectId, action: string) {
+    let user_tracked_actions = this.autotracked_records.get(user);
+    if (!user_tracked_actions) {
+      user_tracked_actions = new Set();
+      this.autotracked_records.set(user, user_tracked_actions);
+    }
+    user_tracked_actions.add(action);
+    return { msg: "Automatic recording started!", user: user, action: action };
+  }
+
+  /**
+   *  Stops automatic recording of the given action.
+   */
+  async stopAutomaticRecording(user: ObjectId, action: string) {
+    const user_tracked_actions = this.autotracked_records.get(user);
+    if (user_tracked_actions) {
+      user_tracked_actions.delete(action);
+    }
+    return { msg: "Automatic recording stopping!", user: user, action: action };
+  }
 
   async delete(_id: ObjectId) {
     await this.records.deleteOne({ _id });

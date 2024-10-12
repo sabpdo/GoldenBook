@@ -34,6 +34,7 @@ export default class Responses {
    * Convert MessageDoc into more readable format for the frontend by converting the sender/receiver id into a username.
    */
   static async message(message: MessageDoc | null) {
+    console.log(message);
     if (!message) {
       return message;
     }
@@ -104,6 +105,25 @@ export default class Responses {
   static async records(records: RecordDoc[]) {
     const recorders = await Authing.idsToUsernames(records.map((record) => record.user));
     return records.map((record, i) => ({ ...record, recorder: recorders[i] }));
+  }
+
+  /**
+   *  Convert AuthorizationDoc into more readable format for the frontend by converting the authorizer/authorizee id into a username.
+   */
+  static async authorization(authorization: AuthorizationDoc | null) {
+    if (!authorization) {
+      return authorization;
+    }
+    const authorizee_username = (await Authing.getUserById(authorization.user)).username;
+    return { ...authorization, authorizee: authorizee_username };
+  }
+
+  /**
+   * Same as {@link authorization} but for an array of AuthorizationDoc for improved performance.
+   */
+  static async authorizations(authorizations: AuthorizationDoc[]) {
+    const authorizees = await Authing.idsToUsernames(authorizations.map((authorization) => authorization.user));
+    return authorizations.map((authorization, i) => ({ ...authorization, authorizee: authorizees[i] }));
   }
 }
 
