@@ -11,8 +11,8 @@ import {
   AuthorizerDoesNotExistError,
   AuthorizerAlreadyExistsError,
   AuthorizationDoc,
-  UserControlMap,
-  AuthorizerPermissionError,
+  UserControlMapDoc,
+  AuthorizerControlError,
 } from "./concepts/authorizing";
 import { Router } from "./framework/router";
 
@@ -147,25 +147,25 @@ export default class Responses {
   /**
    *  Convert an array of UserControlMap information into more readable format for the frontend by converting the authorizee/authorizer id into a username.
    */
-  static async user_control(user_control: UserControlMap | null) {
+  static async user_control(user_control: UserControlMapDoc | null) {
     if (!user_control) {
       return user_control;
     }
     const authorizer = await Authing.getUserById(user_control.authorizer);
     const authorizee = await Authing.getUserById(user_control.authorizee);
-    return { ...user_control, authorizer: authorizer.username, authorizee: authorizee.username };
+    return { ...user_control, authorizer_username: authorizer.username, authorizee: authorizee.username };
   }
 
   /**
    * Similar as {@link user_controls} but instead it takes in a nullable array of UserControlMap
    * and returns an object with two arrays: authorizers and authorizees.
    */
-  static async user_controls(user_control: UserControlMap[] | null) {
+  static async user_controls(user_control: UserControlMapDoc[] | null) {
     if (!user_control) {
       return { authorizers: [], authorizees: [] };
     }
-    const authorizees = await Authing.idsToUsernames(user_control.map((control) => control.authorizee));
-    const authorizers = await Authing.idsToUsernames(user_control.map((control) => control.authorizer));
+    const authorizees = user_control.map((control) => control.authorizee);
+    const authorizers = user_control.map((control) => control.authorizer);
     return { authorizers: authorizers, authorizees: authorizees };
   }
 }
@@ -195,7 +195,7 @@ Router.registerError(UnauthorizedActionError, async (e) => {
   return e.formatWith(username, e.action);
 });
 
-Router.registerError(AuthorizerPermissionError, async (e) => {
+Router.registerError(AuthorizerControlError, async (e) => {
   const authorizer = (await Authing.getUserById(e.authorizer)).username;
   const authorizee = (await Authing.getUserById(e.authorizee)).username;
   return e.formatWith(authorizer, authorizee);

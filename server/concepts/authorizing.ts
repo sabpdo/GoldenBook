@@ -8,7 +8,7 @@ export interface AuthorizationDoc extends BaseDoc {
   denied_action: String;
 }
 
-export interface UserControlMap extends BaseDoc {
+export interface UserControlMapDoc extends BaseDoc {
   authorizer: ObjectId;
   authorizee: ObjectId;
 }
@@ -18,14 +18,14 @@ export interface UserControlMap extends BaseDoc {
  */
 export default class AuthorizingConcept {
   public readonly denied_actions: DocCollection<AuthorizationDoc>;
-  public readonly user_control_map: DocCollection<UserControlMap>;
+  public readonly user_control_map: DocCollection<UserControlMapDoc>;
 
   /**
    * Make an instance of Authorizing.
    */
   constructor(collectionName: string) {
     this.denied_actions = new DocCollection<AuthorizationDoc>(collectionName);
-    this.user_control_map = new DocCollection<UserControlMap>(collectionName + "_control_map");
+    this.user_control_map = new DocCollection<UserControlMapDoc>(collectionName + "_control_map");
   }
 
   async allow(user: ObjectId, denied_action: String) {
@@ -69,29 +69,29 @@ export default class AuthorizingConcept {
   }
 
   async getAuthorizeesByAuthorizer(authorizer: ObjectId) {
-    const authorizees = this.user_control_map.readMany({ authorizer });
-    return authorizees;
+    const authorizees = await this.user_control_map.readMany({ authorizer });
+    return (authorizees) ? authorizees : [];
   }
 
   async getAuthorizersByAuthorizee(authorizee: ObjectId) {
-    const authorizers = this.user_control_map.readMany({ authorizee });
-    return authorizers;
+    const authorizers = await this.user_control_map.readMany({ authorizee });
+    return (authorizers) ? authorizers : [];
   }
 
   async assertIsAuthorizer(authorizer: ObjectId, authorizee: ObjectId) {
     const permission_control = await this.user_control_map.readOne({ authorizer, authorizee });
     if (!permission_control) {
-      throw new AuthorizerPermissionError(authorizer, authorizee);
+      throw new NotAllowedError("{0} does not have permission to control {1}!", authorizer, authorizee);
     }
   }
 
-  async assertActionIsAllowed(user: ObjectId, action: String) {
-    const denied = await this.denied_actions.readOne({ user, action });
+  async assertActionIsAllowed(user: ObjectId, denied_action: String) {
+    const denied = await this.denied_actions.readOne({ user, denied_action });
     if (denied) {
-      throw new UnauthorizedActionError(user, action);
+      throw new UnauthorizedActionError(user, denied_action);
     }
-  }
-}
+  } 
+} 
 
 export class UnauthorizedActionError extends NotAllowedError {
   constructor(
@@ -102,7 +102,7 @@ export class UnauthorizedActionError extends NotAllowedError {
   }
 }
 
-export class AuthorizerPermissionError extends NotAllowedError {
+export class AuthorizerControlError extends NotAllowedError {
   constructor(
     public readonly authorizer: ObjectId,
     public readonly authorizee: ObjectId,

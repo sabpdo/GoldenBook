@@ -556,7 +556,7 @@ class Routes {
     const user = Sessioning.getUser(session);
     const authorizers = await Responses.user_controls(await Authorizing.getAuthorizersByAuthorizee(user));
     const authorizees = await Responses.user_controls(await Authorizing.getAuthorizeesByAuthorizer(user));
-    return { authorizers: authorizers.authorizers, authorizees: authorizees.authorizees };
+    return { authorizers: await authorizers.authorizers, authorizees: await authorizees.authorizees };
   }
 
   /**
