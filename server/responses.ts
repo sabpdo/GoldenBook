@@ -12,7 +12,7 @@ import {
   AuthorizerAlreadyExistsError,
   AuthorizationDoc,
   UserControlMapDoc,
-  AuthorizerControlError,
+  AuthorizerPermissionError,
 } from "./concepts/authorizing";
 import { Router } from "./framework/router";
 
@@ -195,7 +195,7 @@ Router.registerError(UnauthorizedActionError, async (e) => {
   return e.formatWith(username, e.action);
 });
 
-Router.registerError(AuthorizerControlError, async (e) => {
+Router.registerError(AuthorizerPermissionError, async (e) => {
   const authorizer = (await Authing.getUserById(e.authorizer)).username;
   const authorizee = (await Authing.getUserById(e.authorizee)).username;
   return e.formatWith(authorizer, authorizee);

@@ -81,7 +81,7 @@ export default class AuthorizingConcept {
   async assertIsAuthorizer(authorizer: ObjectId, authorizee: ObjectId) {
     const permission_control = await this.user_control_map.readOne({ authorizer, authorizee });
     if (!permission_control) {
-      throw new AuthorizerControlError(authorizer, authorizee);
+      throw new AuthorizerPermissionError(authorizer, authorizee);
     }
   }
 
@@ -103,12 +103,12 @@ export class UnauthorizedActionError extends NotAllowedError {
   }
 }
 
-export class AuthorizerControlError extends NotAllowedError {
+export class AuthorizerPermissionError extends NotAllowedError {
   constructor(
     public readonly authorizer: ObjectId,
     public readonly authorizee: ObjectId,
   ) {
-    super("{0} does not have permission to control {1}!", authorizer, authorizee);
+    super("{0} does not have permission to make authorization on {1}'s account!", authorizer, authorizee);
   }
 }
 
