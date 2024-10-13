@@ -5,7 +5,6 @@ import { NudgeSenderNotMatchError, NudgeDoc } from "./concepts/nudging";
 import { RecorderNotMatchError, RecordDoc, AutomaticRecordDoc } from "./concepts/recording";
 import {
   UnauthorizedActionError,
-  AuthorizerPermissionError,
   AuthorizerNotFoundError,
   AlreadyAllowedError,
   AlreadyDeniedError,
@@ -13,6 +12,7 @@ import {
   AuthorizerAlreadyExistsError,
   AuthorizationDoc,
   UserControlMap,
+  AuthorizerPermissionError,
 } from "./concepts/authorizing";
 import { Router } from "./framework/router";
 
@@ -87,7 +87,7 @@ export default class Responses {
     const senders = Array<string | null>();
     for (let i = 0; i < nudges.length; i++) {
       const nudge_sender = nudges[i].from;
-      if (nudge_sender) {
+      if (!nudge_sender) {
         senders.push(null);
       } else if (nudge_sender) {
         const sender = (await Authing.getUserById(nudge_sender)).username;
@@ -203,7 +203,7 @@ Router.registerError(AuthorizerPermissionError, async (e) => {
 
 Router.registerError(AlreadyAllowedError, async (e) => {
   const authorizee = (await Authing.getUserById(e.authorizee)).username;
-  return e.formatWith(authorizee);
+  return e.formatWith(e.action, authorizee);
 });
 
 Router.registerError(AuthorizerNotFoundError, async (e) => {
@@ -214,7 +214,7 @@ Router.registerError(AuthorizerNotFoundError, async (e) => {
 
 Router.registerError(AlreadyDeniedError, async (e) => {
   const authorizee = (await Authing.getUserById(e.authorizee)).username;
-  return e.formatWith(authorizee);
+  return e.formatWith(e.action, authorizee);
 });
 
 Router.registerError(AuthorizerDoesNotExistError, async (e) => {
@@ -224,5 +224,6 @@ Router.registerError(AuthorizerDoesNotExistError, async (e) => {
 
 Router.registerError(AuthorizerAlreadyExistsError, async (e) => {
   const authorizer = (await Authing.getUserById(e.authorizer)).username;
-  return e.formatWith(authorizer);
+  const authorizee = (await Authing.getUserById(e.authorizee)).username;
+  return e.formatWith(authorizer, authorizee);
 });

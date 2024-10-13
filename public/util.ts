@@ -1,5 +1,5 @@
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
-type InputTag = "input" | "textarea" | "json";
+type InputTag = "input" | "textarea" | "json" | "date";
 type Field = InputTag | { [key: string]: Field };
 type Fields = Record<string, Field>;
 
@@ -102,19 +102,19 @@ const operations: Operation[] = [
     name: "Get Nudges (empty for all)",
     endpoint: "/api/nudges",
     method: "GET",
-    fields: { sender: "input", receiver: "input", action: "input", time: "input" },
+    fields: { sender: "input", action: "input", time: "date" },
   },
   {
     name: "Send Nudge to Message",
     endpoint: "/api/nudges/message",
     method: "POST",
-    fields: { to: "input", time: "input" },
+    fields: { to: "input", time: "date" },
   },
   {
-    name: "Send Periodic Nudge",
+    name: "Send Periodic Nudge to Message",
     endpoint: "/api/nudges/message/periodic",
     method: "POST",
-    fields: { to: "input", action: "input", start: "input", end: "input", frequency: "input" },
+    fields: { to: "input", start: "date", end: "date", frequency: "input" },
   },
   {
     name: "Delete Nudge",
@@ -123,7 +123,7 @@ const operations: Operation[] = [
     fields: { id: "input" },
   },
   {
-    name: "Get Records",
+    name: "Get Records (Empty for All)",
     endpoint: "/api/records",
     method: "GET",
     fields: { receiver: "input" },
@@ -132,7 +132,7 @@ const operations: Operation[] = [
     name: "Create Record",
     endpoint: "/api/records",
     method: "POST",
-    fields: { action: "input", time: "input" },
+    fields: { action: "input", time: "date" },
   },
   {
     name: "Delete Record",
@@ -141,25 +141,25 @@ const operations: Operation[] = [
     fields: { id: "input" },
   },
   {
-    name: "Start Automatic Recording of Message Activity",
+    name: "Start Automatic Recording of Messaging Activity",
     endpoint: "/api/records/automatic/message",
     method: "POST",
     fields: {},
   },
   {
-    name: "Stop Automatic Recording of Messaging",
+    name: "Stop Automatic Recording of Messaging Activity",
     endpoint: "/api/records/automatic/message",
     method: "DELETE",
     fields: {},
   },
   {
-    name: "Start Automatic Recording of Posting",
+    name: "Start Automatic Recording of Posting Activity",
     endpoint: "/api/records/automatic/post",
     method: "POST",
     fields: {},
   },
   {
-    name: "Stop Automatic Recording of Posting",
+    name: "Stop Automatic Recording of Posting Activity",
     endpoint: "/api/records/automatic/post",
     method: "DELETE",
     fields: {},
@@ -286,7 +286,7 @@ async function request(method: HttpMethod, endpoint: string, params?: unknown) {
 function fieldsToHtml(fields: Record<string, Field>, indent = 0, prefix = ""): string {
   return Object.entries(fields)
     .map(([name, tag]) => {
-      const htmlTag = tag === "json" ? "textarea" : tag;
+      const htmlTag = tag === "json" ? "textarea" : tag === "date" ? "input type='date'" : tag;
       return `
         <div class="field" style="margin-left: ${indent}px">
           <label>${name}:

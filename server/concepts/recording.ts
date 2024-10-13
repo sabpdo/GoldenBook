@@ -82,20 +82,22 @@ export default class RecordingConcept {
   /**
    *  Stops automatic recording of the given action.
    */
-  async stopAutomaticRecording(user: ObjectId, action: string) {
-    const record = await this.autotracked_records.readOne({ user, action });
-    if (record == null) {
-      throw new NotFoundError("Automatic tracking for this action does not exist!");
+  async stopAutomaticRecording(user: ObjectId, autotracked_action: string) {
+    if ((await this.autotracked_records.readOne({ user, autotracked_action })) == null) {
+      throw new NotAllowedError("Automatic tracking for this action does not already exist!");
     }
 
-    await this.autotracked_records.deleteOne({ user, action });
+    await this.autotracked_records.deleteOne({ user, autotracked_action });
     return { msg: "Automatic tracking successfully stopped!" };
   }
 
   async assertRecorderIsUser(_id: ObjectId, user: ObjectId) {
     const record = await this.records.readOne({ _id });
-    if (record != null && record.user !== user) {
-      throw new NotAllowedError("You are not allowed to delete this record.");
+    if (record == null) {
+      throw new NotFoundError(`Record ${_id} does not exist!`);
+    }
+    if (record != null && record.user.toString() !== user.toString()) {
+      throw new NotAllowedError("You are not allowed to delete this record!");
     }
   }
 }

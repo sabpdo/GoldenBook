@@ -7,7 +7,7 @@ export interface NudgeDoc extends BaseDoc {
   action: String;
   time: Date;
   to: ObjectId;
-  from?: ObjectId;
+  from: ObjectId;
 }
 
 /**
@@ -24,7 +24,7 @@ export default class NudgingConcept {
   }
 
   async create(action: string, time: Date, to: ObjectId, from?: ObjectId) {
-    if (time <= new Date()) {
+    if (time < new Date()) {
       throw new BadValuesError("Time must be now or in the future!");
     }
     let _id;
@@ -43,20 +43,22 @@ export default class NudgingConcept {
    * @param end  date to stop nudging, must be in the future, end > start
    * @param frequency how often the nudge should be sent in integer days, must be greater than 0
    */
-  async createMany(action: string, start: Date, end: Date, frequency: number, to?: ObjectId, from?: ObjectId) {
+  async createMany(action: string, start: Date, end: Date, frequency: number, to: ObjectId, from: ObjectId) {
     if (start < new Date()) {
-      throw new NotAllowedError("Start date must be now or in the future!");
+      throw new BadValuesError("Start date must be now or in the future!");
     }
     if (end < start) {
-      throw new NotAllowedError("End date must be in the future and greater than start date!");
+      throw new BadValuesError("End date must be in the future and later than start date!");
     }
     if (frequency < 1 || !Number.isInteger(frequency)) {
-      throw new NotAllowedError("Frequency must be an integer greater than 0!");
+      throw new BadValuesError("Frequency must be an integer greater than 0!");
     }
     let time = new Date(start);
     const nudge_ids = [];
-    while (time <= end) {
-      const nudge = this.nudges.createOne({ to, from, action, time });
+    while (time < end) {
+      time = new Date(time);
+      if (time > end) break;
+      const nudge = this.nudges.createOne({ action, time, to, from });
       nudge_ids.push(nudge);
       time.setDate(time.getDate() + frequency);
     }
@@ -76,10 +78,6 @@ export default class NudgingConcept {
     return await this.nudges.readMany({ time: { $gt: time } }, { sort: { time: 1 } });
   }
 
-  async getBySender(from: ObjectId) {
-    return await this.nudges.readMany({ from: from });
-  }
-
   async getByReceiver(to: ObjectId) {
     return await this.nudges.readMany({ to: to });
   }
@@ -94,7 +92,7 @@ export default class NudgingConcept {
     if (!nudge) {
       throw new NotFoundError(`Nudge ${_id} does not exist!`);
     }
-    if (nudge.from && nudge.from.toString() !== user.toString()) {
+    if (nudge.from && !nudge.from.equals(user)) {
       throw new NudgeSenderNotMatchError(user, _id);
     }
   }

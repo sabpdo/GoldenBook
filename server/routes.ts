@@ -140,7 +140,7 @@ class Routes {
   @Router.validate(z.object({ sender: z.string().optional() }))
   async getMessages(sender?: string) {
     let messages;
-    
+
     if (sender) {
       const sender_id = (await Authing.getUserByUsername(sender))._id;
       messages = await Messaging.getBySender(sender_id);
@@ -198,13 +198,10 @@ class Routes {
    * @returns nudges that match the given parameters
    */
   @Router.get("/nudges")
-  @Router.validate(z.object({ sender: z.string().optional(), receiver: z.string().optional(), time: z.string().optional() }))
-  async getNudges(sender?: string, receiver?: string, time?: string) {
+  @Router.validate(z.object({ receiver: z.string().optional(), time: z.string().optional() }))
+  async getNudges(receiver?: string, time?: string) {
     let nudges;
-    if (sender) {
-      const id = (await Authing.getUserByUsername(sender))._id;
-      nudges = await Nudging.getBySender(id);
-    } else if (receiver) {
+    if (receiver) {
       const id = (await Authing.getUserByUsername(receiver))._id;
       nudges = await Nudging.getByReceiver(id);
     } else if (time) {
@@ -218,9 +215,9 @@ class Routes {
 
   /**
    * Sends a nudge from the current session user to the given username to message.
-   * 
+   *
    * @param session the session of the user, the user must be allowed to nudge
-   * @param to the username of the user to send the nudge to, user must exist and be allowed to nudge & message, 
+   * @param to the username of the user to send the nudge to, user must exist and be allowed to nudge & message,
    *           can be the current session user
    * @param time the time of the nudge, must be now or in the future
    * @returns the created nudge
@@ -243,12 +240,12 @@ class Routes {
    * @param session the session of the user, the user must be allowed to nudge and message
    * @param startTime the start time of the nudges, must be after or equal to the current time
    * @param endTime the end time of the nudges, must be after the start time
-   * @param frequency how frequently the nudges should be sent, in number of days, must be integer > 0
-   * @param to the username of the user to send the nudge to, user must exist and be allowed to nudge & message, if not given, nudge is sent to the current session user
+   * @param frequency how spaced apart the nudges should be sent, in number of days, must be integer > 0
+   * @param to the username of the user to send the nudge to, user must exist and be allowed to nudge & message, can be the current session user
    * @returns the created nudges
    */
   @Router.post("/nudges/message/periodic")
-  async sendPeriodicNudgeForMessage(session: SessionDoc, startTime: string, endTime: string, frequency: number, to?: string) {
+  async sendPeriodicNudgeForMessage(session: SessionDoc, start: string, end: string, frequency: string, to: string) {
     let toUser;
     if (to) {
       toUser = (await Authing.getUserByUsername(to))._id;
@@ -260,8 +257,8 @@ class Routes {
     const from = Sessioning.getUser(session);
     await Authorizing.assertActionIsAllowed(from, "Nudge");
     await Authorizing.assertActionIsAllowed(from, "Message");
-    const created = await Nudging.createMany("Message", new Date(startTime), new Date(endTime), frequency, toUser, from);
-    return { msg: created.msg, nudges: await Responses.nudges(created.nudges) };
+    const created = await Nudging.createMany("Message", new Date(start), new Date(end), parseInt(frequency), toUser, from);
+    return { msg: await created.msg, nudges: await Responses.nudges(created.nudges) };
   }
 
   /**
@@ -388,7 +385,7 @@ class Routes {
    * @param session the session of the user, the user must be allowed to record and post
    *                and have automatic post recording enabled
    */
-  @Router.delete("/records/automatic/posting")
+  @Router.delete("/records/automatic/post")
   async stopAutomaticPostTracking(session: SessionDoc) {
     const user = Sessioning.getUser(session);
     await Authorizing.assertActionIsAllowed(user, "Record");
@@ -587,7 +584,7 @@ class Routes {
     const authorizer = Sessioning.getUser(session);
     const authorizee = (await Authing.getUserByUsername(username))._id;
     Authorizing.assertIsAuthorizer(authorizer, authorizee);
-    return { msg: await Authorizing.removeAuthorizer(authorizer, authorizee), authorizer: await Authing.idToUsername(authorizer), authorizee: await Authing.idToUsername(authorizee) };
+    return { msg: (await Authorizing.removeAuthorizer(authorizer, authorizee)).msg, authorizer: await Authing.idToUsername(authorizer), authorizee: await Authing.idToUsername(authorizee) };
   }
 }
 
