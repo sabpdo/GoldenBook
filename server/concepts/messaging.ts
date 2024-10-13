@@ -24,6 +24,9 @@ export default class MessagingConcept {
   }
 
   async send(to: ObjectId, from: ObjectId, content: string) {
+    if (to === from) {
+      throw new NotAllowedError("You can't send a message to yourself!");
+    }
     const time = new Date();
     const _id = await this.messages.createOne({ to, from, content, time });
     return { msg: "Message successfully sent!", message: await this.messages.readOne({ _id }) };

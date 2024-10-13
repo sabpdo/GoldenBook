@@ -96,7 +96,7 @@ class Routes {
   async createPost(session: SessionDoc, content: string, options?: PostOptions) {
     const user = Sessioning.getUser(session);
     await Authorizing.assertActionIsAllowed(user, "Post");
-    const created = await Posting.create(user, content, options);
+    const created = await Posting.create(user, content, new Date(), options);
     if (await Recording.isAutomatic(user, "Post")) {
       await Recording.create(user, "Post", new Date());
     }
@@ -162,7 +162,7 @@ class Routes {
    *  If the user's message activity is being tracked, a record is created as well.
    *
    * @param session  the session of the user, the user must be allowed to message
-   * @param to the username of the user to send the message to, user must exist and be allowed to message
+   * @param to the username of the user to send the message to, user must exist and be allowed to message, to != from
    * @param content the text of the message
    * @returns the created message
    */
@@ -244,7 +244,7 @@ class Routes {
 
   /**
    * Creates multiple nudges for the current session user to perform an action for the given time parameters.
-   * 
+   *
    * @param session the session of the user, the user must be allowed to nudge and message
    * @param startTime the start time of the nudges, must be after or equal to the current time
    * @param endTime the end time of the nudges, must be after the start time
@@ -318,7 +318,7 @@ class Routes {
   /**
    * Deletes a record with the given id.
    *
-   * @param session the session of the current user, the user must be allowed to record and 
+   * @param session the session of the current user, the user must be allowed to record and
    *                be user associated with the record
    * @param id the record id
    * @param action new text to update the record with
@@ -339,6 +339,7 @@ class Routes {
    *  Indicates that records will be automatically created for any time the current user does a messaging action.
    *
    * @param session the session of the user, the user must be allowed to record and message
+   *                automatic message recording must not already be enabled
    * @returns a dictionary with the created record
    */
   @Router.post("/records/automatic/message")
@@ -348,16 +349,15 @@ class Routes {
     await Authorizing.assertActionIsAllowed(user, "Message");
 
     const created = await Recording.startAutomaticRecording(user, "Message");
-    return { msg: created.msg, user: await Authing.getUserById(created.user), action: created.action };
+    return { msg: created.msg, automatic_record: await Responses.automatic_record(created.automatic_record) };
   }
 
   /**
    * Stops automatically creating records for message actions for the current session user
    * for all future (messaging) activity
    *
-   * @param session the session of the user, the user must be allowed to record and message 
+   * @param session the session of the user, the user must be allowed to record and message
    *                and have automatic message recording enabled
-   * @returns a dictionary with the created record
    */
   @Router.delete("/records/automatic/message")
   async stopAutomaticMessageTracking(session: SessionDoc) {
@@ -365,8 +365,7 @@ class Routes {
     await Authorizing.assertActionIsAllowed(user, "Record");
     await Authorizing.assertActionIsAllowed(user, "Message");
 
-    const stopped = await Recording.stopAutomaticRecording(user, "Message");
-    return { msg: stopped.msg, user: await Authing.getUserById(stopped.user), action: stopped.action };
+    return await Recording.stopAutomaticRecording(user, "Message");
   }
 
   /**
@@ -374,7 +373,8 @@ class Routes {
    *  Indicates that automatic records will start for their posting activity.
    *
    * @param session the session of the user, the user must be allowed to record and post
-   * @returns a dictionary with the created record
+   *                automatic post recording must not already be enabled
+   * @returns a dictionary with the created automatic record
    */
   @Router.post("/records/automatic/post")
   async startAutomaticPostTracking(session: SessionDoc) {
@@ -382,8 +382,8 @@ class Routes {
     await Authorizing.assertActionIsAllowed(user, "Record");
     await Authorizing.assertActionIsAllowed(user, "Post");
 
-    const created = await Recording.startAutomaticRecording(user, "Message");
-    return { msg: created.msg, user: await Authing.getUserById(created.user), action: created.action };
+    const created = await Recording.startAutomaticRecording(user, "Post");
+    return { msg: created.msg, automatic_record: await Responses.automatic_record(created.automatic_record) };
   }
 
   /**
@@ -392,7 +392,6 @@ class Routes {
    *
    * @param session the session of the user, the user must be allowed to record and post
    *                and have automatic post recording enabled
-   * @returns a dictionary with the created record
    */
   @Router.delete("/records/automatic/posting")
   async stopAutomaticPostTracking(session: SessionDoc) {
@@ -400,8 +399,7 @@ class Routes {
     await Authorizing.assertActionIsAllowed(user, "Record");
     await Authorizing.assertActionIsAllowed(user, "Post");
 
-    const stopped = await Recording.stopAutomaticRecording(user, "Post");
-    return { msg: stopped.msg, user: await Authing.getUserById(stopped.user), action: stopped.action };
+    return await Recording.stopAutomaticRecording(user, "Post");
   }
 
   /**
@@ -426,7 +424,8 @@ class Routes {
   }
 
   /**
-   * Allows the given username to perform all messaging actions.
+   * Allows the given username to perform all messaging actions if not already allowed.
+   *
    * @param session  the session of the user, the user must be allowed to authorize actions on the target username's account
    * @param username the username to allow messaging for
    * @returns  a dictionary with the allowed action
@@ -441,7 +440,7 @@ class Routes {
   }
 
   /**
-   * Denies the given username from performing all messaging actions.
+   * Denies the given username from performing all messaging actions if not already denied.
    *
    * @param session the session of the user, the user must be allowed to authorize actions on the target username's account
    * @param username the username to deny messaging for
@@ -457,7 +456,8 @@ class Routes {
   }
 
   /**
-   * Allows the given username to perform all posting actions.
+   * Allows the given username to perform all posting actions if not already allowed.
+   *
    * @param session  the session of the user, the user must be allowed to authorize actions on the target username's account
    * @param username the username to allow posting for
    * @returns the allowed authorization
@@ -472,7 +472,7 @@ class Routes {
   }
 
   /**
-   * Denies the given username from performing all posting actions.
+   * Denies the given username from performing all posting actions if not already denied.
    *
    * @param session the session of the user, the user must be allowed to authorize actions on the target username's account
    * @param username the username to deny posting for
@@ -488,7 +488,8 @@ class Routes {
   }
 
   /**
-   * Allows the given username to perform all nudging actions.
+   * Allows the given username to perform all nudging actions if not already allowed.
+   *
    * @param session  the session of the user, the user must be allowed to authorize actions on the target username's account
    * @param username the username to allow nudging for
    * @returns the allowed authorization
@@ -503,7 +504,7 @@ class Routes {
   }
 
   /**
-   * Denies the given username from performing all nudging actions.
+   * Denies the given username from performing all nudging actions if not already denied.
    *
    * @param session the session of the user, the user must be allowed to authorize actions on the target username's account
    * @param username the username to deny nudging for
@@ -519,7 +520,8 @@ class Routes {
   }
 
   /**
-   * Allows the given username to perform all recording actions.
+   * Allows the given username to perform all recording actions if not already allowed.
+   *
    * @param session  the session of the user, the user must be allowed to authorize actions on the target username's account
    * @param username the username to allow recording for
    * @returns the allowed authorization
@@ -534,7 +536,7 @@ class Routes {
   }
 
   /**
-   * Denies the given username from performing all recording actions.
+   * Denies the given username from performing all recording actions if not already denied.
    *
    * @param session the session of the user, the user must be allowed to authorize actions on the target username's account
    * @param username the username to deny recording for
@@ -575,7 +577,7 @@ class Routes {
   }
 
   /**
-   * Gives control of the current session user's account to the given username.
+   * Gives control of the current session user's account to the given username if control is not given already.
    *
    * @param session the session of the user
    * @param username the username to give control to
@@ -584,7 +586,8 @@ class Routes {
   async giveControl(session: SessionDoc, username: string) {
     const authorizee = Sessioning.getUser(session);
     const authorizer = (await Authing.getUserByUsername(username))._id;
-    return { msg: await Authorizing.addAuthorizer(authorizer, authorizee), authorizer: await Authing.idToUsername(authorizer), authorizee: await Authing.idToUsername(authorizee) };
+    const created = await Authorizing.addAuthorizer(authorizer, authorizee);
+    return { msg: created.msg, authorizer: await Authing.idToUsername(created.authorizer), authorizee: await Authing.idToUsername(created.authorizee) };
   }
 
   /**

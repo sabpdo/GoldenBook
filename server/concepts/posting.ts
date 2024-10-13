@@ -10,6 +10,7 @@ export interface PostOptions {
 export interface PostDoc extends BaseDoc {
   author: ObjectId;
   content: string;
+  time: Date;
   options?: PostOptions;
 }
 
@@ -26,8 +27,8 @@ export default class PostingConcept {
     this.posts = new DocCollection<PostDoc>(collectionName);
   }
 
-  async create(author: ObjectId, content: string, options?: PostOptions) {
-    const _id = await this.posts.createOne({ author, content, options });
+  async create(author: ObjectId, content: string, time: Date, options?: PostOptions) {
+    const _id = await this.posts.createOne({ author, content, time, options });
     return { msg: "Post successfully created!", post: await this.posts.readOne({ _id }) };
   }
 
@@ -48,6 +49,11 @@ export default class PostingConcept {
   }
 
   async delete(_id: ObjectId) {
+    const post = await this.posts.readOne({ _id });
+    if (!post) {
+      throw new NotFoundError(`Post ${_id} does not exist!`);
+    }
+
     await this.posts.deleteOne({ _id });
     return { msg: "Post deleted successfully!" };
   }

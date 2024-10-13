@@ -11,7 +11,7 @@ export interface NudgeDoc extends BaseDoc {
 }
 
 /**
- * concept: Nudging [Action, User]
+ * concept: Nudging [User, Action]
  */
 export default class NudgingConcept {
   public readonly nudges: DocCollection<NudgeDoc>;
@@ -24,7 +24,7 @@ export default class NudgingConcept {
   }
 
   async create(action: string, time: Date, to: ObjectId, from?: ObjectId) {
-    time = (time == undefined) ? new Date() : time;
+    time = time == undefined ? new Date() : time;
     let _id;
     if (from) {
       _id = await this.nudges.createOne({ to, from, action, time });
@@ -54,7 +54,7 @@ export default class NudgingConcept {
     let time = new Date(start);
     const nudge_ids = [];
     while (time <= end) {
-      const nudge = this.nudges.createOne({ to, from, action, time })
+      const nudge = this.nudges.createOne({ to, from, action, time });
       nudge_ids.push(nudge);
       time.setDate(time.getDate() + frequency);
     }
@@ -106,5 +106,3 @@ export class NudgeSenderNotMatchError extends NotAllowedError {
     super("{0} is not the sender of nudge {1}!", sender, _id);
   }
 }
-
-  

@@ -2,8 +2,17 @@ import { Authing } from "./app";
 import { PostAuthorNotMatchError, PostDoc } from "./concepts/posting";
 import { MessageSenderNotMatchError, MessageDoc } from "./concepts/messaging";
 import { NudgeSenderNotMatchError, NudgeDoc } from "./concepts/nudging";
-import { RecorderNotMatchError, RecordDoc } from "./concepts/recording";
-import { UnauthorizedActionError, AuthorizerError, AuthorizerNotFoundError, AuthorizationDoc  } from "./concepts/authorizing";
+import { RecorderNotMatchError, RecordDoc, AutomaticRecordDoc } from "./concepts/recording";
+import {
+  UnauthorizedActionError,
+  AuthorizerPermissionError,
+  AuthorizerNotFoundError,
+  AlreadyAllowedError,
+  AlreadyDeniedError,
+  AuthorizerDoesNotExistError,
+  AuthorizerAlreadyExistsError,
+  AuthorizationDoc,
+} from "./concepts/authorizing";
 import { Router } from "./framework/router";
 
 /**
@@ -74,7 +83,7 @@ export default class Responses {
    * Same as {@link nudge} but for an array of NudgeDoc for improved performance.
    */
   static async nudges(nudges: NudgeDoc[]) {
-    const senders = Array<string|null>();
+    const senders = Array<string | null>();
     for (let i = 0; i < nudges.length; i++) {
       const nudge_sender = nudges[i].from;
       if (nudge_sender) {
@@ -105,6 +114,14 @@ export default class Responses {
   static async records(records: RecordDoc[]) {
     const recorders = await Authing.idsToUsernames(records.map((record) => record.user));
     return records.map((record, i) => ({ ...record, recorder: recorders[i] }));
+  }
+
+  static async automatic_record(automatic_record: AutomaticRecordDoc | null) {
+    if (!automatic_record) {
+      return automatic_record;
+    }
+    const recorder = await Authing.getUserById(automatic_record.user);
+    return { ...automatic_record, recorder: recorder.username };
   }
 
   /**
@@ -152,8 +169,29 @@ Router.registerError(UnauthorizedActionError, async (e) => {
   return e.formatWith(username, e.action);
 });
 
-Router.registerError(AuthorizerError, async (e) => {
+Router.registerError(AuthorizerPermissionError, async (e) => {
   const authorizer = (await Authing.getUserById(e.authorizer)).username;
   const authorizee = (await Authing.getUserById(e.authorizee)).username;
   return e.formatWith(authorizer, authorizee);
+});
+
+Router.registerError(AlreadyAllowedError, async (e) => {
+  const authorizee = (await Authing.getUserById(e.authorizee)).username;
+  return e.formatWith(authorizee);
+});
+
+Router.registerError(AuthorizerNotFoundError, async (e) => {
+  const authorizer = (await Authing.getUserById(e.authorizer)).username;
+  const authorizee = (await Authing.getUserById(e.authorizee)).username;
+  return e.formatWith(authorizer, authorizee);
+});
+
+Router.registerError(AlreadyDeniedError, async (e) => {
+  const authorizee = (await Authing.getUserById(e.authorizee)).username;
+  return e.formatWith(authorizee);
+});
+
+Router.registerError(AuthorizerDoesNotExistError, async (e) => {
+  const authorizer = (await Authing.getUserById(e.authorizer)).username;
+  return e.formatWith(authorizer);
 });

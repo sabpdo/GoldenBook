@@ -9,19 +9,24 @@ export interface RecordDoc extends BaseDoc {
   time: Date;
 }
 
+export interface AutomaticRecordDoc extends BaseDoc {
+  user: ObjectId;
+  action: String;
+}
+
 /**
  * concept: Recording [User, Action]
  */
 export default class RecordingConcept {
   public readonly records: DocCollection<RecordDoc>;
-  public readonly autotracked_records: Map<ObjectId, Set<string>>;
+  public readonly autotracked_records: DocCollection<AutomaticRecordDoc>;
 
   /**
    * Make an instance of Recording.
    */
   constructor(collectionName: string) {
     this.records = new DocCollection<RecordDoc>(collectionName);
-    this.autotracked_records = new Map();
+    this.autotracked_records = new DocCollection<AutomaticRecordDoc>(collectionName + "_autotracked");
   }
 
   async create(user: ObjectId, action: string, time: Date) {
@@ -49,42 +54,42 @@ export default class RecordingConcept {
   async getByAction(action: String) {
     return await this.records.readMany({ action: action });
   }
-  
+
+  async delete(_id: ObjectId) {
+    await this.records.deleteOne({ _id });
+    return { msg: "Record deleted successfully!" };
+  }
+
   /**
    *  Determines if the action is automatic.
    */
   async isAutomatic(user: ObjectId, action: string) {
-    const user_tracked_actions = this.autotracked_records.get(user);
-    return (user_tracked_actions) ? user_tracked_actions.has(action) : false;
-  }  
+    return (await this.autotracked_records.readOne({ user, action })) != null;
+  }
 
   /**
    *  Starts automatic recording of the given action.
    */
   async startAutomaticRecording(user: ObjectId, action: string) {
-    let user_tracked_actions = this.autotracked_records.get(user);
-    if (!user_tracked_actions) {
-      user_tracked_actions = new Set();
-      this.autotracked_records.set(user, user_tracked_actions);
+    if ((await this.autotracked_records.readOne({ user, action })) != null) {
+      throw new NotAllowedError("Automatic tracking for this action already exists!");
     }
-    user_tracked_actions.add(action);
-    return { msg: "Automatic recording started!", user: user, action: action };
+
+    const _id = await this.autotracked_records.createOne({ user, action });
+    return { msg: "Automatic tracking successfully started!", automatic_record: await this.autotracked_records.readOne({ _id }) };
   }
 
   /**
    *  Stops automatic recording of the given action.
    */
   async stopAutomaticRecording(user: ObjectId, action: string) {
-    const user_tracked_actions = this.autotracked_records.get(user);
-    if (user_tracked_actions) {
-      user_tracked_actions.delete(action);
+    const record = await this.autotracked_records.readOne({ user, action });
+    if (record == null) {
+      throw new NotFoundError("Automatic tracking for this action does not exist!");
     }
-    return { msg: "Automatic recording stopping!", user: user, action: action };
-  }
 
-  async delete(_id: ObjectId) {
-    await this.records.deleteOne({ _id });
-    return { msg: "Record deleted successfully!" };
+    await this.autotracked_records.deleteOne({ user, action });
+    return { msg: "Automatic tracking successfully stopped!" };
   }
 
   async assertRecorderIsUser(_id: ObjectId, user: ObjectId) {
@@ -103,5 +108,3 @@ export class RecorderNotMatchError extends NotAllowedError {
     super("{0} is not the recorder of record {1}!", recorder, _id);
   }
 }
-
-  

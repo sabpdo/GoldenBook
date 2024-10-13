@@ -5,7 +5,7 @@ import { BadValuesError, NotAllowedError, NotFoundError } from "./errors";
 
 export interface AuthorizationDoc extends BaseDoc {
   user: ObjectId;
-  action: String;
+  denied_action: String;
 }
 
 /**
@@ -24,23 +24,34 @@ export default class AuthorizingConcept {
   }
 
   async allow(user: ObjectId, action: String) {
+    const denied = await this.denied_actions.readOne({ user: user, action: action });
+    if (!denied) {
+      throw new AlreadyAllowedError(user, action);
+    }
     await this.denied_actions.deleteMany({ user: user, action: action });
     return { msg: "Action successfully allowed!", user: user, action: action };
   }
 
   async deny(user: ObjectId, action: String) {
-    const _id = await this.denied_actions.createOne({ user, action: action });
+    const denied = await this.denied_actions.readOne({ user: user, action: action });
+    if (denied) {
+      throw new AlreadyDeniedError(user, action);
+    }
+    const _id = await this.denied_actions.createOne({ user, denied_action: action });
     return { msg: "Action successfully denied!", authorization: await this.denied_actions.readOne({ _id }) };
   }
 
   async addAuthorizer(authorizer: ObjectId, authorizee: ObjectId) {
     const userMap = this.user_control_map.get(authorizer);
+    if (this.user_control_map.has(authorizer) && userMap != undefined && userMap.has(authorizee)) {
+      throw new AuthorizerAlreadyExistsError(authorizer, authorizee);
+    }
     if (!userMap) {
       this.user_control_map.set(authorizer, new Set([authorizee]));
     } else {
       userMap.add(authorizee);
     }
-    return { msg: "Control successfully given!" };
+    return { msg: "Control successfully given!", authorizer: authorizer, authorizee: authorizee };
   }
 
   async removeAuthorizer(authorizer: ObjectId, authorizee: ObjectId) {
@@ -60,7 +71,7 @@ export default class AuthorizingConcept {
   async getAuthorizeesByAuthorizer(authorizer: ObjectId) {
     const userMap = this.user_control_map.get(authorizer);
     if (!this.user_control_map.has(authorizer) || (userMap != undefined && userMap.size == 0)) {
-      throw new NotFoundError("No authorizees found!");
+      throw new AuthorizerDoesNotExistError(authorizer);
     } else if (this.user_control_map.has(authorizer) && userMap != undefined) {
       return Array.from(userMap);
     }
@@ -80,9 +91,9 @@ export default class AuthorizingConcept {
 
   async assertIsAuthorizer(authorizer: ObjectId, authorizee: ObjectId) {
     const userMap = this.user_control_map.get(authorizer);
-  
+
     if (!this.user_control_map.has(authorizer) || (userMap != undefined && !userMap.has(authorizer))) {
-      throw new AuthorizerError(authorizer, authorizee);
+      throw new AuthorizerPermissionError(authorizer, authorizee);
     }
   }
 
@@ -103,7 +114,7 @@ export class UnauthorizedActionError extends NotAllowedError {
   }
 }
 
-export class AuthorizerError extends NotAllowedError {
+export class AuthorizerPermissionError extends NotAllowedError {
   constructor(
     public readonly authorizer: ObjectId,
     public readonly authorizee: ObjectId,
@@ -118,5 +129,38 @@ export class AuthorizerNotFoundError extends NotFoundError {
     public readonly authorizee: ObjectId,
   ) {
     super("Authorization from {0} to {1} does not exist!", authorizer, authorizee);
+  }
+}
+
+export class AlreadyAllowedError extends NotAllowedError {
+  constructor(
+    public readonly authorizee: ObjectId,
+    public readonly action: String,
+  ) {
+    super("Action {0} already is allowed for user {1}!", action, authorizee);
+  }
+}
+
+export class AlreadyDeniedError extends NotAllowedError {
+  constructor(
+    public readonly authorizee: ObjectId,
+    public readonly action: String,
+  ) {
+    super("Action {0} already is denied for user {1}!", action, authorizee);
+  }
+}
+
+export class AuthorizerAlreadyExistsError extends NotAllowedError {
+  constructor(
+    public readonly authorizer: ObjectId,
+    public readonly authorizee: ObjectId,
+  ) {
+    super("{0} already has authorization permission access over {1}!", authorizer, authorizee);
+  }
+}
+
+export class AuthorizerDoesNotExistError extends NotFoundError {
+  constructor(public readonly authorizer: ObjectId) {
+    super("Authorizer {0} does not exist!", authorizer);
   }
 }
