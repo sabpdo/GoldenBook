@@ -11,7 +11,7 @@ export interface RecordDoc extends BaseDoc {
 
 export interface AutomaticRecordDoc extends BaseDoc {
   user: ObjectId;
-  action: String;
+  autotracked_action: String;
 }
 
 /**
@@ -70,12 +70,12 @@ export default class RecordingConcept {
   /**
    *  Starts automatic recording of the given action.
    */
-  async startAutomaticRecording(user: ObjectId, action: string) {
-    if ((await this.autotracked_records.readOne({ user, action })) != null) {
+  async startAutomaticRecording(user: ObjectId, autotracked_action: string) {
+    if ((await this.autotracked_records.readOne({ user, autotracked_action })) != null) {
       throw new NotAllowedError("Automatic tracking for this action already exists!");
     }
 
-    const _id = await this.autotracked_records.createOne({ user, action });
+    const _id = await this.autotracked_records.createOne({ user, autotracked_action });
     return { msg: "Automatic tracking successfully started!", automatic_record: await this.autotracked_records.readOne({ _id }) };
   }
 

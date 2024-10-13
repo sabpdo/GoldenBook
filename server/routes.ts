@@ -137,20 +137,13 @@ class Routes {
   }
 
   @Router.get("/messages")
-  @Router.validate(z.object({ sender: z.string().optional(), receiver: z.string().optional() }))
-  async getMessages(sender?: string, receiver?: string) {
+  @Router.validate(z.object({ sender: z.string().optional() }))
+  async getMessages(sender?: string) {
     let messages;
-
-    if (sender && receiver) {
+    
+    if (sender) {
       const sender_id = (await Authing.getUserByUsername(sender))._id;
-      const receiver_id = (await Authing.getUserByUsername(receiver))._id;
-      messages = await Messaging.getBySenderAndReceiver(sender_id, receiver_id);
-    } else if (sender) {
-      const id = (await Authing.getUserByUsername(sender))._id;
-      messages = await Messaging.getBySender(id);
-    } else if (receiver) {
-      const id = (await Authing.getUserByUsername(receiver))._id;
-      messages = await Messaging.getByReceiver(id);
+      messages = await Messaging.getBySender(sender_id);
     } else {
       messages = await Messaging.getMessages();
     }
@@ -225,9 +218,11 @@ class Routes {
 
   /**
    * Sends a nudge from the current session user to the given username to message.
+   * 
    * @param session the session of the user, the user must be allowed to nudge
-   * @param to the username of the user to send the nudge to, user must exist and be allowed to nudge & message
-   * @param time the time of the nudge, defaults to the current time
+   * @param to the username of the user to send the nudge to, user must exist and be allowed to nudge & message, 
+   *           can be the current session user
+   * @param time the time of the nudge, must be now or in the future
    * @returns the created nudge
    */
   @Router.post("/nudges/message")
@@ -562,18 +557,9 @@ class Routes {
   @Router.get("/authorize/control")
   async getAuthorizations(session: SessionDoc) {
     const user = Sessioning.getUser(session);
-    const authorizers = await Authorizing.getAuthorizersByAuthorizee(user);
-    const authorizees = await Authorizing.getAuthorizeesByAuthorizer(user);
-    let authorizers_usernames = new Array<string>();
-    let authorizees_usernames = new Array<string>();
-
-    if (authorizers != undefined) {
-      authorizers_usernames = await Authing.idsToUsernames(authorizers);
-    }
-    if (authorizees != undefined) {
-      authorizees_usernames = await Authing.idsToUsernames(authorizees);
-    }
-    return { authorizers: authorizers_usernames, authorizees: authorizees_usernames };
+    const authorizers = await Responses.user_controls(await Authorizing.getAuthorizersByAuthorizee(user));
+    const authorizees = await Responses.user_controls(await Authorizing.getAuthorizeesByAuthorizer(user));
+    return { authorizers: authorizers.authorizers, authorizees: authorizees.authorizees };
   }
 
   /**
@@ -587,7 +573,7 @@ class Routes {
     const authorizee = Sessioning.getUser(session);
     const authorizer = (await Authing.getUserByUsername(username))._id;
     const created = await Authorizing.addAuthorizer(authorizer, authorizee);
-    return { msg: created.msg, authorizer: await Authing.idToUsername(created.authorizer), authorizee: await Authing.idToUsername(created.authorizee) };
+    return { msg: created.msg, permission_control: await Responses.user_control(created.permission_control) };
   }
 
   /**

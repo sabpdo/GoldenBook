@@ -1,7 +1,7 @@
 import { ObjectId } from "mongodb";
 
 import DocCollection, { BaseDoc } from "../framework/doc";
-import { NotAllowedError, NotFoundError } from "./errors";
+import { BadValuesError, NotAllowedError, NotFoundError } from "./errors";
 
 export interface NudgeDoc extends BaseDoc {
   action: String;
@@ -24,7 +24,9 @@ export default class NudgingConcept {
   }
 
   async create(action: string, time: Date, to: ObjectId, from?: ObjectId) {
-    time = time == undefined ? new Date() : time;
+    if (time <= new Date()) {
+      throw new BadValuesError("Time must be now or in the future!");
+    }
     let _id;
     if (from) {
       _id = await this.nudges.createOne({ to, from, action, time });

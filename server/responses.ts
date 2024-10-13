@@ -12,6 +12,7 @@ import {
   AuthorizerDoesNotExistError,
   AuthorizerAlreadyExistsError,
   AuthorizationDoc,
+  UserControlMap,
 } from "./concepts/authorizing";
 import { Router } from "./framework/router";
 
@@ -142,6 +143,31 @@ export default class Responses {
     const authorizees = await Authing.idsToUsernames(authorizations.map((authorization) => authorization.user));
     return authorizations.map((authorization, i) => ({ ...authorization, authorizee: authorizees[i] }));
   }
+
+  /**
+   *  Convert an array of UserControlMap information into more readable format for the frontend by converting the authorizee/authorizer id into a username.
+   */
+  static async user_control(user_control: UserControlMap | null) {
+    if (!user_control) {
+      return user_control;
+    }
+    const authorizer = await Authing.getUserById(user_control.authorizer);
+    const authorizee = await Authing.getUserById(user_control.authorizee);
+    return { ...user_control, authorizer: authorizer.username, authorizee: authorizee.username };
+  }
+
+  /**
+   * Similar as {@link user_controls} but instead it takes in a nullable array of UserControlMap
+   * and returns an object with two arrays: authorizers and authorizees.
+   */
+  static async user_controls(user_control: UserControlMap[] | null) {
+    if (!user_control) {
+      return { authorizers: [], authorizees: [] };
+    }
+    const authorizees = await Authing.idsToUsernames(user_control.map((control) => control.authorizee));
+    const authorizers = await Authing.idsToUsernames(user_control.map((control) => control.authorizer));
+    return { authorizers: authorizers, authorizees: authorizees };
+  }
 }
 
 Router.registerError(PostAuthorNotMatchError, async (e) => {
@@ -192,6 +218,11 @@ Router.registerError(AlreadyDeniedError, async (e) => {
 });
 
 Router.registerError(AuthorizerDoesNotExistError, async (e) => {
+  const authorizer = (await Authing.getUserById(e.authorizer)).username;
+  return e.formatWith(authorizer);
+});
+
+Router.registerError(AuthorizerAlreadyExistsError, async (e) => {
   const authorizer = (await Authing.getUserById(e.authorizer)).username;
   return e.formatWith(authorizer);
 });

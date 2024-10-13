@@ -84,7 +84,7 @@ const operations: Operation[] = [
     name: "Get Messages (empty for all)",
     endpoint: "/api/messages",
     method: "GET",
-    fields: { sender: "input", receiver: "input" },
+    fields: { sender: "input" },
   },
   {
     name: "Send Message",
