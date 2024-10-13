@@ -97,7 +97,7 @@ export default class RecordingConcept {
       throw new NotFoundError(`Record ${_id} does not exist!`);
     }
     if (record != null && record.user.toString() !== user.toString()) {
-      throw new NotAllowedError("You are not allowed to delete this record!");
+      throw new RecorderNotMatchError(user, _id);
     }
   }
 }

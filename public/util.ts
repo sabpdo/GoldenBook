@@ -166,7 +166,7 @@ const operations: Operation[] = [
   },
   {
     name: "Get Denied Actions for User",
-    endpoint: "/api/authorize/:username",
+    endpoint: "/api/authorize/deny/:username",
     method: "GET",
     fields: { username: "input" },
   },
@@ -225,10 +225,10 @@ const operations: Operation[] = [
     fields: { username: "input" },
   },
   {
-    name: "Get Authorizees and Authorizers for Current User",
-    endpoint: "/api/authorize/control",
+    name: "Get Authorizees and Authorizers (Empty for Current Session User)",
+    endpoint: "/api/authorize/control/:username",
     method: "GET",
-    fields: {},
+    fields: { username: "input"},
   },
   {
     name: "Give Authorization Permission",

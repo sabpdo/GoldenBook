@@ -113,6 +113,7 @@ class Routes {
    * @returns the updated post
    */
   @Router.patch("/posts/:id")
+  @Router.validate(z.object({ id: z.string(), content: z.string().optional() }))
   async updatePost(session: SessionDoc, id: string, content?: string, options?: PostOptions) {
     const user = Sessioning.getUser(session);
     const oid = new ObjectId(id);
@@ -224,8 +225,8 @@ class Routes {
    */
   @Router.post("/nudges/message")
   async sendNudgeForMessage(session: SessionDoc, to: string, time?: string) {
-    const receiver = (await Authing.getUserByUsername(to))._id;
     const sender = Sessioning.getUser(session);
+    const receiver = (await Authing.getUserByUsername(to))._id;
     const timeDate = time ? new Date(time) : new Date();
     await Authorizing.assertActionIsAllowed(sender, "Nudge");
     await Authorizing.assertActionIsAllowed(receiver, "Nudge");
@@ -398,7 +399,8 @@ class Routes {
    * Gets the actions that the parametrized user with the given username is denied from performing.
    * @returns a list of denied actions
    */
-  @Router.get("/authorize/:username")
+  @Router.get("/authorize/deny/:username")
+  @Router.validate(z.object({ username: z.string().optional() }))
   async getDeniedActions(username: string) {
     const userOid = (await Authing.getUserByUsername(username))._id;
     return await Authorizing.getDeniedActionByUser(userOid);
@@ -426,7 +428,7 @@ class Routes {
   async authorizeMessaging(session: SessionDoc, username: string) {
     const authorizer = Sessioning.getUser(session);
     const authorizee = (await Authing.getUserByUsername(username))._id;
-    Authorizing.assertIsAuthorizer(authorizer, authorizee);
+    await Authorizing.assertIsAuthorizer(authorizer, authorizee);
     const created = await Authorizing.allow(authorizee, "Message");
     return { msg: created.msg, user: await Authing.idToUsername(created.user), action: created.action };
   }
@@ -440,9 +442,9 @@ class Routes {
    */
   @Router.post("/authorize/deny/message")
   async denyMessaging(session: SessionDoc, username: string) {
-    const authorizee = (await Authing.getUserByUsername(username))._id;
     const authorizer = Sessioning.getUser(session);
-    Authorizing.assertIsAuthorizer(authorizer, authorizee);
+    const authorizee = (await Authing.getUserByUsername(username))._id;
+    await Authorizing.assertIsAuthorizer(authorizer, authorizee);
     const created = await Authorizing.deny(authorizee, "Message");
     return { msg: created.msg, authorization: await Responses.authorization(created.authorization) };
   }
@@ -458,7 +460,7 @@ class Routes {
   async authorizePosting(session: SessionDoc, username: string) {
     const authorizer = Sessioning.getUser(session);
     const authorizee = (await Authing.getUserByUsername(username))._id;
-    Authorizing.assertIsAuthorizer(authorizer, authorizee);
+    await Authorizing.assertIsAuthorizer(authorizer, authorizee);
     const created = await Authorizing.allow(authorizee, "Post");
     return { msg: created.msg, user: await Authing.idToUsername(created.user), action: created.action };
   }
@@ -472,9 +474,9 @@ class Routes {
    */
   @Router.post("/authorize/deny/post")
   async denyPosting(session: SessionDoc, username: string) {
-    const authorizee = (await Authing.getUserByUsername(username))._id;
     const authorizer = Sessioning.getUser(session);
-    Authorizing.assertIsAuthorizer(authorizer, authorizee);
+    const authorizee = (await Authing.getUserByUsername(username))._id;
+    await Authorizing.assertIsAuthorizer(authorizer, authorizee);
     const created = await Authorizing.deny(authorizee, "Post");
     return { msg: created.msg, authorization: await Responses.authorization(created.authorization) };
   }
@@ -490,7 +492,7 @@ class Routes {
   async authorizeNudge(session: SessionDoc, username: string) {
     const authorizer = Sessioning.getUser(session);
     const authorizee = (await Authing.getUserByUsername(username))._id;
-    Authorizing.assertIsAuthorizer(authorizer, authorizee);
+    await Authorizing.assertIsAuthorizer(authorizer, authorizee);
     const created = await Authorizing.allow(authorizee, "Nudge");
     return { msg: created.msg, user: await Authing.idToUsername(created.user), action: created.action };
   }
@@ -504,9 +506,9 @@ class Routes {
    */
   @Router.post("/authorize/deny/nudge")
   async denyNudging(session: SessionDoc, username: string) {
-    const authorizee = (await Authing.getUserByUsername(username))._id;
     const authorizer = Sessioning.getUser(session);
-    Authorizing.assertIsAuthorizer(authorizer, authorizee);
+    const authorizee = (await Authing.getUserByUsername(username))._id;
+    await Authorizing.assertIsAuthorizer(authorizer, authorizee);
     const created = await Authorizing.deny(authorizee, "Nudge");
     return { msg: created.msg, authorization: await Responses.authorization(created.authorization) };
   }
@@ -522,7 +524,7 @@ class Routes {
   async authorizeRecord(session: SessionDoc, username: string) {
     const authorizer = Sessioning.getUser(session);
     const authorizee = (await Authing.getUserByUsername(username))._id;
-    Authorizing.assertIsAuthorizer(authorizer, authorizee);
+    await Authorizing.assertIsAuthorizer(authorizer, authorizee);
     const created = await Authorizing.allow(authorizee, "Record");
     return { msg: created.msg, user: await Authing.getUserById(created.user), action: created.action };
   }
@@ -536,24 +538,26 @@ class Routes {
    */
   @Router.post("/authorize/deny/record")
   async denyRecording(session: SessionDoc, username: string) {
-    const authorizee = (await Authing.getUserByUsername(username))._id;
     const authorizer = Sessioning.getUser(session);
-    Authorizing.assertIsAuthorizer(authorizer, authorizee);
+    const authorizee = (await Authing.getUserByUsername(username))._id;
+    await Authorizing.assertIsAuthorizer(authorizer, authorizee);
     const created = await Authorizing.deny(authorizee, "Record");
     return { msg: created.msg, authorization: await Responses.authorization(created.authorization) };
   }
 
   /**
-   * Gets the usernames of users who the current session user has authorization access and who can authorize actions on the current session user's account.
+   * Gets the usernames of users who the parametrized user has authorization access and who can authorize actions on the parametrized user's account.
+   * If no username is given, the current session user's authorizations are returned.
    *
    * @param session the session of the user
    * @returns a dictionary of
-   *    "authorizers": list of usernames who the current session user has given control to
-   *    "authorizees": list of usernames who have given control to the current session user
+   *    "authorizers": list of usernames who the parametrized user has given control to
+   *    "authorizees": list of usernames who have given control to the parametrized user
    */
-  @Router.get("/authorize/control")
-  async getAuthorizations(session: SessionDoc) {
-    const user = Sessioning.getUser(session);
+  @Router.get("/authorize/control/:username")
+  @Router.validate(z.object({ username: z.string().optional() }))
+  async getAuthorizations(username: string) {
+    const user = (await Authing.getUserByUsername(username))._id;
     const authorizers = await Responses.user_controls(await Authorizing.getAuthorizersByAuthorizee(user));
     const authorizees = await Responses.user_controls(await Authorizing.getAuthorizeesByAuthorizer(user));
     return { authorizers: await authorizers.authorizers, authorizees: await authorizees.authorizees };
@@ -583,7 +587,7 @@ class Routes {
   async revokeControl(session: SessionDoc, username: string) {
     const authorizer = Sessioning.getUser(session);
     const authorizee = (await Authing.getUserByUsername(username))._id;
-    Authorizing.assertIsAuthorizer(authorizer, authorizee);
+    await Authorizing.assertIsAuthorizer(authorizer, authorizee);
     return { msg: (await Authorizing.removeAuthorizer(authorizer, authorizee)).msg, authorizer: await Authing.idToUsername(authorizer), authorizee: await Authing.idToUsername(authorizee) };
   }
 }

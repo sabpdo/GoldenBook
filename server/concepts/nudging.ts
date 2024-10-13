@@ -92,7 +92,7 @@ export default class NudgingConcept {
     if (!nudge) {
       throw new NotFoundError(`Nudge ${_id} does not exist!`);
     }
-    if (nudge.from && !nudge.from.equals(user)) {
+    if (nudge.from && nudge.from.toString() != user.toString()) {
       throw new NudgeSenderNotMatchError(user, _id);
     }
   }

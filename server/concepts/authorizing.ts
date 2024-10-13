@@ -81,7 +81,7 @@ export default class AuthorizingConcept {
   async assertIsAuthorizer(authorizer: ObjectId, authorizee: ObjectId) {
     const permission_control = await this.user_control_map.readOne({ authorizer, authorizee });
     if (!permission_control) {
-      throw new NotAllowedError("{0} does not have permission to control {1}!", authorizer, authorizee);
+      throw new AuthorizerControlError(authorizer, authorizee);
     }
   }
 
@@ -92,6 +92,7 @@ export default class AuthorizingConcept {
     }
   } 
 } 
+
 
 export class UnauthorizedActionError extends NotAllowedError {
   constructor(

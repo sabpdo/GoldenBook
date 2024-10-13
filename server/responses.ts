@@ -164,8 +164,8 @@ export default class Responses {
     if (!user_control) {
       return { authorizers: [], authorizees: [] };
     }
-    const authorizees = user_control.map((control) => control.authorizee);
-    const authorizers = user_control.map((control) => control.authorizer);
+    const authorizees = Authing.idsToUsernames(user_control.map((control) => control.authorizee));
+    const authorizers = Authing.idsToUsernames(user_control.map((control) => control.authorizer));
     return { authorizers: authorizers, authorizees: authorizees };
   }
 }
